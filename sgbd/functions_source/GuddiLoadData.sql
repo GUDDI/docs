@@ -1,21 +1,18 @@
-drop SCHEMA guddi CASCADE;
+﻿drop SCHEMA guddi CASCADE;
 
 CREATE SCHEMA guddi;
 
-INSERT INTO guddi.papel (id,descricao) VALUES (1,'ADMINSTRADOR');
-INSERT INTO guddi.papel (id,descricao) VALUES (2,'GUEST');
-INSERT INTO guddi.papel (id,descricao) VALUES (3,'MANAGER');
+INSERT INTO guddi.papel (id,descricao) VALUES (4,'ADMINSTRADOR');
+INSERT INTO guddi.papel (id,descricao) VALUES (1,'GUEST');
+INSERT INTO guddi.papel (id,descricao) VALUES (2,'MANAGER');
 INSERT INTO guddi.orgao (id,nome) VALUES (1, 'SERPRO');
 INSERT INTO guddi.orgao (id,nome) VALUES (2, 'PRODEPA');
 INSERT INTO guddi.orgao (id,nome) VALUES (3, 'TRT');
 INSERT INTO guddi.orgao (id,nome) VALUES (4, 'TJE');
-INSERT INTO guddi.usuario (id,nome,usuario,senha,id_orgao) VALUES (1,'System Admininstrator','admin',md5('123456'),1);
-INSERT INTO guddi.usuario (id,nome,usuario,senha,id_orgao) VALUES (2,'Guest User','guest',md5('123456'),1);
-INSERT INTO guddi.usuario (id,nome,usuario,senha,id_orgao) VALUES (3,'System Manager','manager',md5('123456'),1);
-INSERT INTO guddi.usuario (id,nome,usuario,senha,id_orgao) VALUES (4,'thiago Soares','thiago.soares',md5('80278760287'),1);
-INSERT INTO guddi.usuario_papel (id_usuario, id_papel) VALUES (1,1);
-INSERT INTO guddi.usuario_papel (id_usuario, id_papel) VALUES (2,2);
-INSERT INTO guddi.usuario_papel (id_usuario, id_papel) VALUES (3,3);
+INSERT INTO guddi.usuario (id,nome,usuario,senha,id_orgao, id_papel) VALUES (1,'System Admininstrator','admin',md5('123456'),1,4);
+INSERT INTO guddi.usuario (id,nome,usuario,senha,id_orgao, id_papel) VALUES (2,'Guest User','guest',md5('123456'),1,1);
+INSERT INTO guddi.usuario (id,nome,usuario,senha,id_orgao, id_papel) VALUES (3,'System Manager','manager',md5('123456'),1,2);
+INSERT INTO guddi.usuario (id,nome,usuario,senha,id_orgao, id_papel) VALUES (4,'thiago Soares','thiago.soares',md5('80278760287'),4);
 
 --Inserts para o Sistema Governo Digital
 INSERT INTO guddi.sistema   (id,nome,id_orgao) VALUES (1,'Governo Digital',2);
