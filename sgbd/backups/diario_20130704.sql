@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
--- Started on 2013-07-04 12:08:57 BRT
+-- Started on 2013-07-04 12:19:57 BRT
 
 SET statement_timeout = 0;
 SET client_encoding = 'UTF8';
@@ -60,7 +60,7 @@ CREATE SEQUENCE atributo_id_seq
 ALTER TABLE guddi.atributo_id_seq OWNER TO postgres;
 
 --
--- TOC entry 1899 (class 0 OID 0)
+-- TOC entry 1901 (class 0 OID 0)
 -- Dependencies: 142
 -- Name: atributo_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: postgres
 --
@@ -69,7 +69,7 @@ ALTER SEQUENCE atributo_id_seq OWNED BY atributo.id;
 
 
 --
--- TOC entry 1900 (class 0 OID 0)
+-- TOC entry 1902 (class 0 OID 0)
 -- Dependencies: 142
 -- Name: atributo_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: postgres
 --
@@ -109,7 +109,7 @@ CREATE SEQUENCE descritor_id_seq
 ALTER TABLE guddi.descritor_id_seq OWNER TO postgres;
 
 --
--- TOC entry 1901 (class 0 OID 0)
+-- TOC entry 1903 (class 0 OID 0)
 -- Dependencies: 144
 -- Name: descritor_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: postgres
 --
@@ -118,7 +118,7 @@ ALTER SEQUENCE descritor_id_seq OWNED BY descritor.id;
 
 
 --
--- TOC entry 1902 (class 0 OID 0)
+-- TOC entry 1904 (class 0 OID 0)
 -- Dependencies: 144
 -- Name: descritor_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: postgres
 --
@@ -158,7 +158,7 @@ ALTER TABLE guddi.excecao OWNER TO postgres;
 
 --
 -- TOC entry 147 (class 1259 OID 55827)
--- Dependencies: 5 146
+-- Dependencies: 146 5
 -- Name: excecao_id_seq; Type: SEQUENCE; Schema: guddi; Owner: postgres
 --
 
@@ -173,7 +173,7 @@ CREATE SEQUENCE excecao_id_seq
 ALTER TABLE guddi.excecao_id_seq OWNER TO postgres;
 
 --
--- TOC entry 1903 (class 0 OID 0)
+-- TOC entry 1905 (class 0 OID 0)
 -- Dependencies: 147
 -- Name: excecao_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: postgres
 --
@@ -182,7 +182,7 @@ ALTER SEQUENCE excecao_id_seq OWNED BY excecao.id;
 
 
 --
--- TOC entry 1904 (class 0 OID 0)
+-- TOC entry 1906 (class 0 OID 0)
 -- Dependencies: 147
 -- Name: excecao_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: postgres
 --
@@ -221,7 +221,7 @@ CREATE SEQUENCE orgao_id_seq
 ALTER TABLE guddi.orgao_id_seq OWNER TO postgres;
 
 --
--- TOC entry 1905 (class 0 OID 0)
+-- TOC entry 1907 (class 0 OID 0)
 -- Dependencies: 149
 -- Name: orgao_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: postgres
 --
@@ -230,7 +230,7 @@ ALTER SEQUENCE orgao_id_seq OWNED BY orgao.id;
 
 
 --
--- TOC entry 1906 (class 0 OID 0)
+-- TOC entry 1908 (class 0 OID 0)
 -- Dependencies: 149
 -- Name: orgao_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: postgres
 --
@@ -269,7 +269,7 @@ CREATE SEQUENCE papel_id_seq
 ALTER TABLE guddi.papel_id_seq OWNER TO postgres;
 
 --
--- TOC entry 1907 (class 0 OID 0)
+-- TOC entry 1909 (class 0 OID 0)
 -- Dependencies: 151
 -- Name: papel_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: postgres
 --
@@ -278,7 +278,7 @@ ALTER SEQUENCE papel_id_seq OWNED BY papel.id;
 
 
 --
--- TOC entry 1908 (class 0 OID 0)
+-- TOC entry 1910 (class 0 OID 0)
 -- Dependencies: 151
 -- Name: papel_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: postgres
 --
@@ -347,7 +347,7 @@ CREATE SEQUENCE servico_id_seq
 ALTER TABLE guddi.servico_id_seq OWNER TO postgres;
 
 --
--- TOC entry 1909 (class 0 OID 0)
+-- TOC entry 1911 (class 0 OID 0)
 -- Dependencies: 155
 -- Name: servico_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: postgres
 --
@@ -356,7 +356,7 @@ ALTER SEQUENCE servico_id_seq OWNED BY servico.id;
 
 
 --
--- TOC entry 1910 (class 0 OID 0)
+-- TOC entry 1912 (class 0 OID 0)
 -- Dependencies: 155
 -- Name: servico_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: postgres
 --
@@ -396,7 +396,7 @@ CREATE SEQUENCE sistema_id_seq
 ALTER TABLE guddi.sistema_id_seq OWNER TO postgres;
 
 --
--- TOC entry 1911 (class 0 OID 0)
+-- TOC entry 1913 (class 0 OID 0)
 -- Dependencies: 157
 -- Name: sistema_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: postgres
 --
@@ -405,7 +405,7 @@ ALTER SEQUENCE sistema_id_seq OWNED BY sistema.id;
 
 
 --
--- TOC entry 1912 (class 0 OID 0)
+-- TOC entry 1914 (class 0 OID 0)
 -- Dependencies: 157
 -- Name: sistema_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: postgres
 --
@@ -429,7 +429,7 @@ ALTER TABLE guddi.tag OWNER TO postgres;
 
 --
 -- TOC entry 159 (class 1259 OID 55861)
--- Dependencies: 158 5
+-- Dependencies: 5 158
 -- Name: tag_id_seq; Type: SEQUENCE; Schema: guddi; Owner: postgres
 --
 
@@ -444,7 +444,7 @@ CREATE SEQUENCE tag_id_seq
 ALTER TABLE guddi.tag_id_seq OWNER TO postgres;
 
 --
--- TOC entry 1913 (class 0 OID 0)
+-- TOC entry 1915 (class 0 OID 0)
 -- Dependencies: 159
 -- Name: tag_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: postgres
 --
@@ -453,7 +453,7 @@ ALTER SEQUENCE tag_id_seq OWNED BY tag.id;
 
 
 --
--- TOC entry 1914 (class 0 OID 0)
+-- TOC entry 1916 (class 0 OID 0)
 -- Dependencies: 159
 -- Name: tag_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: postgres
 --
@@ -474,7 +474,8 @@ CREATE TABLE usuario (
     email character varying(64) NOT NULL,
     id_orgao bigint,
     id_papel bigint,
-    ativo boolean DEFAULT true NOT NULL
+    ativo boolean DEFAULT true NOT NULL,
+    usuario character varying(15)
 );
 
 
@@ -514,7 +515,7 @@ CREATE SEQUENCE hibernate_sequence
 ALTER TABLE public.hibernate_sequence OWNER TO postgres;
 
 --
--- TOC entry 1915 (class 0 OID 0)
+-- TOC entry 1917 (class 0 OID 0)
 -- Dependencies: 162
 -- Name: hibernate_sequence; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
@@ -597,7 +598,7 @@ ALTER TABLE ONLY tag ALTER COLUMN id SET DEFAULT nextval('tag_id_seq'::regclass)
 
 
 --
--- TOC entry 1881 (class 0 OID 55811)
+-- TOC entry 1883 (class 0 OID 55811)
 -- Dependencies: 141
 -- Data for Name: atributo; Type: TABLE DATA; Schema: guddi; Owner: postgres
 --
@@ -613,7 +614,7 @@ COPY atributo (id, nome, tipo, id_servico) FROM stdin;
 
 
 --
--- TOC entry 1882 (class 0 OID 55816)
+-- TOC entry 1884 (class 0 OID 55816)
 -- Dependencies: 143
 -- Data for Name: descritor; Type: TABLE DATA; Schema: guddi; Owner: postgres
 --
@@ -624,7 +625,7 @@ COPY descritor (id, descricao, id_sistema) FROM stdin;
 
 
 --
--- TOC entry 1883 (class 0 OID 55821)
+-- TOC entry 1885 (class 0 OID 55821)
 -- Dependencies: 145
 -- Data for Name: descritor_tag; Type: TABLE DATA; Schema: guddi; Owner: postgres
 --
@@ -637,7 +638,7 @@ COPY descritor_tag (id_descritor, id_tag) FROM stdin;
 
 
 --
--- TOC entry 1884 (class 0 OID 55824)
+-- TOC entry 1886 (class 0 OID 55824)
 -- Dependencies: 146
 -- Data for Name: excecao; Type: TABLE DATA; Schema: guddi; Owner: postgres
 --
@@ -647,7 +648,7 @@ COPY excecao (id, descricao, identificador, id_servico) FROM stdin;
 
 
 --
--- TOC entry 1885 (class 0 OID 55829)
+-- TOC entry 1887 (class 0 OID 55829)
 -- Dependencies: 148
 -- Data for Name: orgao; Type: TABLE DATA; Schema: guddi; Owner: postgres
 --
@@ -661,7 +662,7 @@ COPY orgao (id, nome) FROM stdin;
 
 
 --
--- TOC entry 1886 (class 0 OID 55834)
+-- TOC entry 1888 (class 0 OID 55834)
 -- Dependencies: 150
 -- Data for Name: papel; Type: TABLE DATA; Schema: guddi; Owner: postgres
 --
@@ -674,7 +675,7 @@ COPY papel (id, descricao) FROM stdin;
 
 
 --
--- TOC entry 1887 (class 0 OID 55839)
+-- TOC entry 1889 (class 0 OID 55839)
 -- Dependencies: 152
 -- Data for Name: recurso; Type: TABLE DATA; Schema: guddi; Owner: postgres
 --
@@ -684,7 +685,7 @@ COPY recurso (id, nome) FROM stdin;
 
 
 --
--- TOC entry 1888 (class 0 OID 55842)
+-- TOC entry 1890 (class 0 OID 55842)
 -- Dependencies: 153
 -- Data for Name: recursos; Type: TABLE DATA; Schema: guddi; Owner: postgres
 --
@@ -694,7 +695,7 @@ COPY recursos (id, nome) FROM stdin;
 
 
 --
--- TOC entry 1889 (class 0 OID 55845)
+-- TOC entry 1891 (class 0 OID 55845)
 -- Dependencies: 154
 -- Data for Name: servico; Type: TABLE DATA; Schema: guddi; Owner: postgres
 --
@@ -710,7 +711,7 @@ COPY servico (id, nome, wsdl_link, id_descritor) FROM stdin;
 
 
 --
--- TOC entry 1890 (class 0 OID 55853)
+-- TOC entry 1892 (class 0 OID 55853)
 -- Dependencies: 156
 -- Data for Name: sistema; Type: TABLE DATA; Schema: guddi; Owner: postgres
 --
@@ -721,7 +722,7 @@ COPY sistema (id, nome, id_orgao) FROM stdin;
 
 
 --
--- TOC entry 1891 (class 0 OID 55858)
+-- TOC entry 1893 (class 0 OID 55858)
 -- Dependencies: 158
 -- Data for Name: tag; Type: TABLE DATA; Schema: guddi; Owner: postgres
 --
@@ -734,21 +735,21 @@ COPY tag (id, tag) FROM stdin;
 
 
 --
--- TOC entry 1892 (class 0 OID 55863)
+-- TOC entry 1894 (class 0 OID 55863)
 -- Dependencies: 160
 -- Data for Name: usuario; Type: TABLE DATA; Schema: guddi; Owner: postgres
 --
 
-COPY usuario (id, nome, senha, email, id_orgao, id_papel, ativo) FROM stdin;
-1	System Admininstrator	e10adc3949ba59abbe56e057f20f883e	admin@guddi.org	1	4	t
-2	Guest User	e10adc3949ba59abbe56e057f20f883e	guest@guddi.org	1	1	t
-3	System Manager	e10adc3949ba59abbe56e057f20f883e	manager@guddi.org	1	2	t
-4	thiago Soares	48772a0046f9ee8e0531bba30f280005	thiago.soares@guddi.org	1	1	t
+COPY usuario (id, nome, senha, email, id_orgao, id_papel, ativo, usuario) FROM stdin;
+1	System Admininstrator	e10adc3949ba59abbe56e057f20f883e	admin@guddi.org	1	4	t	\N
+2	Guest User	e10adc3949ba59abbe56e057f20f883e	guest@guddi.org	1	1	t	\N
+3	System Manager	e10adc3949ba59abbe56e057f20f883e	manager@guddi.org	1	2	t	\N
+4	thiago Soares	48772a0046f9ee8e0531bba30f280005	thiago.soares@guddi.org	1	1	t	\N
 \.
 
 
 --
--- TOC entry 1893 (class 0 OID 55869)
+-- TOC entry 1895 (class 0 OID 55869)
 -- Dependencies: 161
 -- Data for Name: usuario_recursos; Type: TABLE DATA; Schema: guddi; Owner: postgres
 --
@@ -775,6 +776,16 @@ ALTER TABLE ONLY atributo
 
 ALTER TABLE ONLY descritor
     ADD CONSTRAINT descritor_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 1869 (class 2606 OID 55976)
+-- Dependencies: 160 160
+-- Name: email_unique; Type: CONSTRAINT; Schema: guddi; Owner: postgres; Tablespace: 
+--
+
+ALTER TABLE ONLY usuario
+    ADD CONSTRAINT email_unique UNIQUE (email);
 
 
 --
@@ -868,7 +879,7 @@ ALTER TABLE ONLY tag
 
 
 --
--- TOC entry 1869 (class 2606 OID 55907)
+-- TOC entry 1871 (class 2606 OID 55907)
 -- Dependencies: 160 160
 -- Name: usuario_pkey; Type: CONSTRAINT; Schema: guddi; Owner: postgres; Tablespace: 
 --
@@ -878,7 +889,7 @@ ALTER TABLE ONLY usuario
 
 
 --
--- TOC entry 1871 (class 2606 OID 55909)
+-- TOC entry 1873 (class 2606 OID 55909)
 -- Dependencies: 161 161 161
 -- Name: usuario_recursos_pkey; Type: CONSTRAINT; Schema: guddi; Owner: postgres; Tablespace: 
 --
@@ -888,7 +899,7 @@ ALTER TABLE ONLY usuario_recursos
 
 
 --
--- TOC entry 1876 (class 2606 OID 55910)
+-- TOC entry 1878 (class 2606 OID 55910)
 -- Dependencies: 146 1862 154
 -- Name: fk1476033c3f0429cb; Type: FK CONSTRAINT; Schema: guddi; Owner: postgres
 --
@@ -898,8 +909,8 @@ ALTER TABLE ONLY excecao
 
 
 --
--- TOC entry 1872 (class 2606 OID 55915)
--- Dependencies: 141 154 1862
+-- TOC entry 1874 (class 2606 OID 55915)
+-- Dependencies: 141 1862 154
 -- Name: fk20fdaad83f0429cb; Type: FK CONSTRAINT; Schema: guddi; Owner: postgres
 --
 
@@ -908,8 +919,8 @@ ALTER TABLE ONLY atributo
 
 
 --
--- TOC entry 1879 (class 2606 OID 55930)
--- Dependencies: 160 148 1854
+-- TOC entry 1881 (class 2606 OID 55930)
+-- Dependencies: 1854 148 160
 -- Name: fk5b4d8b0e42446fb1; Type: FK CONSTRAINT; Schema: guddi; Owner: postgres
 --
 
@@ -918,8 +929,8 @@ ALTER TABLE ONLY usuario
 
 
 --
--- TOC entry 1880 (class 2606 OID 55961)
--- Dependencies: 150 160 1856
+-- TOC entry 1882 (class 2606 OID 55961)
+-- Dependencies: 1856 150 160
 -- Name: fk5b4d8b0e42516e99; Type: FK CONSTRAINT; Schema: guddi; Owner: postgres
 --
 
@@ -928,8 +939,8 @@ ALTER TABLE ONLY usuario
 
 
 --
--- TOC entry 1873 (class 2606 OID 55935)
--- Dependencies: 143 1864 156
+-- TOC entry 1875 (class 2606 OID 55935)
+-- Dependencies: 156 143 1864
 -- Name: fkd0d887af4cc53091; Type: FK CONSTRAINT; Schema: guddi; Owner: postgres
 --
 
@@ -938,8 +949,8 @@ ALTER TABLE ONLY descritor
 
 
 --
--- TOC entry 1877 (class 2606 OID 55940)
--- Dependencies: 154 1848 143
+-- TOC entry 1879 (class 2606 OID 55940)
+-- Dependencies: 1848 154 143
 -- Name: fkd97c5e9f58938cab; Type: FK CONSTRAINT; Schema: guddi; Owner: postgres
 --
 
@@ -948,8 +959,8 @@ ALTER TABLE ONLY servico
 
 
 --
--- TOC entry 1878 (class 2606 OID 55945)
--- Dependencies: 148 1854 156
+-- TOC entry 1880 (class 2606 OID 55945)
+-- Dependencies: 156 148 1854
 -- Name: fke05ce20242446fb1; Type: FK CONSTRAINT; Schema: guddi; Owner: postgres
 --
 
@@ -958,8 +969,8 @@ ALTER TABLE ONLY sistema
 
 
 --
--- TOC entry 1874 (class 2606 OID 55950)
--- Dependencies: 1848 143 145
+-- TOC entry 1876 (class 2606 OID 55950)
+-- Dependencies: 145 1848 143
 -- Name: id_descritor; Type: FK CONSTRAINT; Schema: guddi; Owner: postgres
 --
 
@@ -968,8 +979,8 @@ ALTER TABLE ONLY descritor_tag
 
 
 --
--- TOC entry 1875 (class 2606 OID 55955)
--- Dependencies: 1866 158 145
+-- TOC entry 1877 (class 2606 OID 55955)
+-- Dependencies: 145 1866 158
 -- Name: id_tag; Type: FK CONSTRAINT; Schema: guddi; Owner: postgres
 --
 
@@ -978,7 +989,7 @@ ALTER TABLE ONLY descritor_tag
 
 
 --
--- TOC entry 1898 (class 0 OID 0)
+-- TOC entry 1900 (class 0 OID 0)
 -- Dependencies: 7
 -- Name: public; Type: ACL; Schema: -; Owner: postgres
 --
@@ -989,7 +1000,7 @@ GRANT ALL ON SCHEMA public TO postgres;
 GRANT ALL ON SCHEMA public TO PUBLIC;
 
 
--- Completed on 2013-07-04 12:08:57 BRT
+-- Completed on 2013-07-04 12:19:57 BRT
 
 --
 -- PostgreSQL database dump complete
