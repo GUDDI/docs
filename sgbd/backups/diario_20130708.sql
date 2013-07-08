@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
--- Started on 2013-07-08 17:19:08 BRT
+-- Started on 2013-07-08 17:38:03 BRT
 
 SET statement_timeout = 0;
 SET client_encoding = 'UTF8';
@@ -212,7 +212,15 @@ ALTER TABLE guddi.marcacao OWNER TO postgres;
 
 CREATE TABLE orgao (
     id bigint NOT NULL,
-    nome character varying(50)
+    nome character varying(50),
+    uf character varying(2),
+    codigo character varying(10),
+    email character varying(60),
+    endereco character varying(70),
+    nomecontato character varying(50),
+    razaosocial character varying(50),
+    sigla character varying(10),
+    url character varying(100)
 );
 
 
@@ -595,11 +603,11 @@ COPY marcacao (id, marcacao) FROM stdin;
 -- Data for Name: orgao; Type: TABLE DATA; Schema: guddi; Owner: postgres
 --
 
-COPY orgao (id, nome) FROM stdin;
-1	SERPRO
-2	PRODEPA
-3	TRT
-4	TJE
+COPY orgao (id, nome, uf, codigo, email, endereco, nomecontato, razaosocial, sigla, url) FROM stdin;
+1	SERPRO	\N	\N	\N	\N	\N	\N	\N	\N
+2	PRODEPA	\N	\N	\N	\N	\N	\N	\N	\N
+3	TRT	\N	\N	\N	\N	\N	\N	\N	\N
+4	TJE	\N	\N	\N	\N	\N	\N	\N	\N
 \.
 
 
@@ -876,7 +884,7 @@ GRANT ALL ON SCHEMA public TO postgres;
 GRANT ALL ON SCHEMA public TO PUBLIC;
 
 
--- Completed on 2013-07-08 17:19:08 BRT
+-- Completed on 2013-07-08 17:38:04 BRT
 
 --
 -- PostgreSQL database dump complete
