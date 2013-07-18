@@ -157,4 +157,3 @@ ALTER SEQUENCE guddi.orgao_id_seq RESTART WITH 100;
 
 ALTER SEQUENCE guddi.marcacao_id_seq RESTART WITH 100;
 
---teste
