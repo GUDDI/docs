@@ -1,5 +1,4 @@
 
-
 INSERT INTO "guddi"."orgao" (id,nome,uf,codigo,email,endereco,nomecontato,razaosocial,sigla,url) VALUES (1,'SERPRO','DF','SERPRO','serpro@serpro.pa.gov.br','Rua 123','','SERVIÇO FEDERAL DE PROCESSAMENTO DE DADOS','SERPRO','http://www.serpro.gov.br');
 INSERT INTO "guddi"."orgao" (id,nome,uf,codigo,email,endereco,nomecontato,razaosocial,sigla,url) VALUES (2,'PRODEPA','PA','PRODEPA','prodepa@prodepa.pa.gov.br','Rodovia Augusto Montenegro km 10 · Centro Administrativo do Estado','CAP','PRODEPA','PRODEPA','http://www.prodepa.pa.gov.br/');
 INSERT INTO "guddi"."orgao" (id,nome,uf,codigo,email,endereco,nomecontato,razaosocial,sigla,url) VALUES (3,'TRT','PA','TRT','Umarizal - CEP 66050-100 - Belém-Pará-Amazônia-Brasil','','TRE','TRE','','http://www.trt8.jus.br/');
@@ -141,4 +140,6 @@ INSERT INTO "guddi"."descritor_marcacao" (id_descritor,id_marcacao) VALUES (6,17
 --delete from guddi.descritor_marcacao
 
 --delete from guddi.marcacao
+
+--ok
 
