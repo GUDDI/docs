@@ -39,8 +39,7 @@ INSERT INTO "guddi"."descritor" (id,url,id_sistema,tipo,nome,descricao) VALUES (
 
 
 --Servicos 1-Porto Sem Papel
-INSERT INTO "guddi"."retorno" (id,descricao,tipo) VALUES (1,'Flag Indicativa do cadastro com sucesso','Boolean');
-INSERT INTO "guddi"."servico" (id,id_descritor,nome,descricao,id_retorno) VALUES (1,1,'cadastrarNotaFiscal','Metodo para cadastro de uma nota fiscal',1);
+INSERT INTO "guddi"."servico" (id,id_descritor,nome,descricao,tipo_retorno) VALUES (1,1,'cadastrarNotaFiscal','Metodo para cadastro de uma nota fiscal','Boolean');
 INSERT INTO "guddi"."atributo" (id,descricao,nome,tipo,id_servico) VALUES (1,'Número da nota fiscal','numero','String',1);
 INSERT INTO "guddi"."atributo" (id,descricao,nome,tipo,id_servico) VALUES (2,'Data da nota fiscal','dataEmissao','Date',1);
 INSERT INTO "guddi"."atributo" (id,descricao,nome,tipo,id_servico) VALUES (3,'Valor da nota fiscal','valorTotal','Double',1);
@@ -48,8 +47,7 @@ INSERT INTO "guddi"."atributo" (id,descricao,nome,tipo,id_servico) VALUES (4,'To
 INSERT INTO "guddi"."excecao" (id,descricao,identificador,id_servico) VALUES (1,'Nota Fiscal não localizada','erro.nf.01',1);
 INSERT INTO "guddi"."excecao" (id,descricao,identificador,id_servico) VALUES (2,'Nota Fiscal invalida','erro.nf.02',1);
 
-INSERT INTO "guddi"."retorno" (id,descricao,tipo) VALUES (2,'Flag Indicativa da alteracao com sucesso','Boolean');
-INSERT INTO "guddi"."servico" (id,id_descritor,nome,descricao,id_retorno) VALUES (2,1,'alterarNotaFiscal','Metodo para cadastro de uma nota fiscal',2);
+INSERT INTO "guddi"."servico" (id,id_descritor,nome,descricao,tipo_retorno) VALUES (2,1,'alterarNotaFiscal','Metodo para cadastro de uma nota fiscal','Boolean');
 INSERT INTO "guddi"."atributo" (id,descricao,nome,tipo,id_servico) VALUES (5,'Número da nota fiscal','numero','String',2);
 INSERT INTO "guddi"."atributo" (id,descricao,nome,tipo,id_servico) VALUES (6,'Data da nota fiscal','dataEmissao','Date',2);
 INSERT INTO "guddi"."atributo" (id,descricao,nome,tipo,id_servico) VALUES (7,'Valor da nota fiscal','valorTotal','Double',2);
@@ -58,43 +56,38 @@ INSERT INTO "guddi"."excecao" (id,descricao,identificador,id_servico) VALUES (3,
 INSERT INTO "guddi"."excecao" (id,descricao,identificador,id_servico) VALUES (4,'Nota Fiscal invalida','erro.nf.04',2);
 INSERT INTO "guddi"."excecao" (id,descricao,identificador,id_servico) VALUES (5,'Nota Fiscal bloqueada para edição','erro.nf.05',2);
 
-INSERT INTO "guddi"."retorno" (id,descricao,tipo) VALUES (3,'Flag Indicativa da exclusão com sucesso','Boolean');
-INSERT INTO "guddi"."servico" (id,id_descritor,nome,descricao,id_retorno) VALUES (3,1,'excluirNotaFiscal','Metodo para cadastro de uma nota fiscal',3);
+INSERT INTO "guddi"."servico" (id,id_descritor,nome,descricao,tipo_retorno) VALUES (3,1,'excluirNotaFiscal','Metodo para cadastro de uma nota fiscal','Boolean');
 INSERT INTO "guddi"."atributo" (id,descricao,nome,tipo,id_servico) VALUES (9,'Identificador da nota fiscal','id','Long',3);
 INSERT INTO "guddi"."excecao" (id,descricao,identificador,id_servico) VALUES (6,'Nota Fiscal não localizada','erro.nf.06',3);
 INSERT INTO "guddi"."excecao" (id,descricao,identificador,id_servico) VALUES (7,'Nota Fiscal invalida','erro.nf.07',3);
 INSERT INTO "guddi"."excecao" (id,descricao,identificador,id_servico) VALUES (8,'Nota Fiscal bloqueada para edição','erro.nf.08',3);
 
-
 --Servicos 4-Governo Digital
-INSERT INTO "guddi"."retorno" (id,descricao,tipo) VALUES (4,'Lista de Sistemas','ArrayList<Sistema>');
-INSERT INTO "guddi"."servico" (id,id_descritor,nome,descricao,id_retorno) VALUES (4,4,'buscarSistemasVinculados','Metodo para recuperar a list de sistemas do usuário',4);
+INSERT INTO "guddi"."servico" (id,id_descritor,nome,descricao,tipo_retorno) VALUES (4,4,'buscarSistemasVinculados','Metodo para recuperar a list de sistemas do usuário','ArrayList<Sistema>');
 INSERT INTO "guddi"."atributo" (id,descricao,nome,tipo,id_servico) VALUES (10,'Identificador do usuário','id','Long',4);
 INSERT INTO "guddi"."excecao" (id,descricao,identificador,id_servico) VALUES (9,'Usuário não localizado','erro.usuario.01',4);
 INSERT INTO "guddi"."excecao" (id,descricao,identificador,id_servico) VALUES (10,'Usuário bloqueado','erro.usuario.02',4);
 
-INSERT INTO "guddi"."retorno" (id,descricao,tipo) VALUES (5,'Lista de usuarios encontrados','List<Usuario>');
-INSERT INTO "guddi"."servico" (id,id_descritor,nome,descricao,id_retorno) VALUES (5,4,'buscarUsuarios','Metodo para pesquisa de usuários',5);
+INSERT INTO "guddi"."servico" (id,id_descritor,nome,descricao,tipo_retorno) VALUES (5,4,'buscarUsuarios','Metodo para pesquisa de usuários','List<Usuario>');
 INSERT INTO "guddi"."atributo"(id,descricao,nome,tipo,id_servico) VALUES (11,'Nome, login ou documento do usuário','descricao','String',5);
 INSERT INTO "guddi"."excecao" (id,descricao,identificador,id_servico) VALUES (11,'Parâmetros inválidos','erro.pesquisa.03',5);
 
-INSERT INTO "guddi"."retorno" (id,descricao,tipo) VALUES (6,'Gson com estatisticas de acesso do Sistema','Text');
-INSERT INTO "guddi"."servico" (id,id_descritor,nome,descricao,id_retorno) VALUES (6,4,'obterEstatisticas','Metodo para obter Gson com estatisticas de acesso do Sistema',6);
+INSERT INTO "guddi"."servico" (id,id_descritor,nome,descricao,tipo_retorno) VALUES (6,4,'obterEstatisticas','Metodo para obter Gson com estatisticas de acesso do Sistema','Text');
 INSERT INTO "guddi"."atributo" (id,descricao,nome,tipo,id_servico) VALUES (12,'identificador do Sistema','id','Long',6);
 INSERT INTO "guddi"."excecao" (id,descricao,identificador,id_servico) VALUES (12,'Sistema não localizado','erro.estatistica.06',6);
 
 --Servicos 6-eProtocolo
-INSERT INTO "guddi"."retorno" (id,descricao,tipo) VALUES (7,'Objeto com detalhamento do estado atual de um protocolo','DetalhamentoProtocolo');
-INSERT INTO "guddi"."servico" (id,id_descritor,nome,descricao,id_retorno) VALUES (7,6,'consultarProtocolo','Metodo para obter o detalhamento do estado atual de um protocolo',7);
+INSERT INTO "guddi"."servico" (id,id_descritor,nome,descricao,tipo_retorno) VALUES (7,6,'consultarProtocolo','Metodo para obter o detalhamento do estado atual de um protocolo','DetalhamentoProtocolo');
 INSERT INTO "guddi"."atributo"(id,descricao,nome,tipo,id_servico) VALUES (13,'Identificador do protocolo','protocolo','String',7);
 INSERT INTO "guddi"."excecao" (id,descricao,identificador,id_servico) VALUES (13,'Protocolo não localizado','erro.protocolo.01',7);
 
-INSERT INTO "guddi"."retorno" (id,descricao,tipo) VALUES (8,'Lista de tramitações de um protocolo','ArrayList<Tramitacao>');
-INSERT INTO "guddi"."servico" (id,id_descritor,nome,descricao,id_retorno) VALUES (8,6,'consultarTramitacoes','Metodo para obter a lista de tramitações de um documento',8);
+INSERT INTO "guddi"."servico" (id,id_descritor,nome,descricao,tipo_retorno) VALUES (8,6,'consultarTramitacoes','Metodo para obter a lista de tramitações de um documento','ArrayList<Tramitacao>');
 INSERT INTO "guddi"."atributo"(id,descricao,nome,tipo,id_servico) VALUES (14,'Identificador do protocolo','protocolo','String',8);
 INSERT INTO "guddi"."excecao" (id,descricao,identificador,id_servico) VALUES (14,'Protocolo não localizado','erro.protocolo.02',8);
 
 
+
+update guddi.servico set tip
 
 
 

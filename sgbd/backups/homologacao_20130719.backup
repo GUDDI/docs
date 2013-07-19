@@ -1,0 +1,3073 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Started on 2013-07-19 16:52:09 BRT
+
+SET statement_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = off;
+SET check_function_bodies = false;
+SET client_min_messages = warning;
+SET escape_string_warning = off;
+
+--
+-- TOC entry 8 (class 2615 OID 565039)
+-- Name: guddi; Type: SCHEMA; Schema: -; Owner: thiago.soares
+--
+
+CREATE SCHEMA guddi;
+
+
+ALTER SCHEMA guddi OWNER TO "thiago.soares";
+
+--
+-- TOC entry 6 (class 2615 OID 564862)
+-- Name: suporte; Type: SCHEMA; Schema: -; Owner: postgres
+--
+
+CREATE SCHEMA suporte;
+
+
+ALTER SCHEMA suporte OWNER TO postgres;
+
+--
+-- TOC entry 362 (class 2612 OID 564865)
+-- Name: plpgsql; Type: PROCEDURAL LANGUAGE; Schema: -; Owner: jose.fernandes
+--
+
+CREATE PROCEDURAL LANGUAGE plpgsql;
+
+
+ALTER PROCEDURAL LANGUAGE plpgsql OWNER TO "jose.fernandes";
+
+SET search_path = suporte, pg_catalog;
+
+--
+-- TOC entry 323 (class 1247 OID 564887)
+-- Dependencies: 6 1550
+-- Name: type_fc_tabelas_ordenar_por_fk; Type: TYPE; Schema: suporte; Owner: da
+--
+
+CREATE TYPE type_fc_tabelas_ordenar_por_fk AS (
+	ordem integer,
+	banco name,
+	esquema name,
+	tabela name,
+	oid oid,
+	auto_fk boolean,
+	fk_ciclica boolean
+);
+
+
+ALTER TYPE suporte.type_fc_tabelas_ordenar_por_fk OWNER TO da;
+
+--
+-- TOC entry 27 (class 1255 OID 564870)
+-- Dependencies: 6 362
+-- Name: fc_altera_para_owner_padrao(); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_altera_para_owner_padrao() RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+declare 
+  comando record;
+  v_retorno text default '';
+begin
+  for comando in 
+    -- Tabelas
+    select
+      1 as ordem, 'alter table ' || T.schemaname || '.' || T.tablename || ' owner to ' || quote_ident(E.schema_owner) as sql_1,
+      'grant all privileges on ' || T.schemaname || '.' || T.tablename || ' to ' || quote_ident(E.schema_owner) as sql_2
+    from 
+      pg_tables T
+        join information_schema.schemata E on (E.schema_name = T.schemaname)
+    where T.tableowner <> E.schema_owner
+    union
+    -- Visoes
+    select 
+      2, 'alter table ' || table_schema || '.' || table_name || ' owner to ' || quote_ident(E.schema_owner),
+      'grant all privileges on ' || table_schema || '.' || table_name || ' to ' || quote_ident(E.schema_owner)
+    from 
+      information_schema.views V
+      join information_schema.schemata E on (E.schema_name = V.table_schema)
+      join pg_class C on (C.relname = V.table_name)
+        join pg_user U on (U.usesysid = C.relowner)
+    where U.usename <> E.schema_owner
+    union
+    -- Sequencias
+    select
+      3, 'alter table ' || S.sequence_schema || '.' || S.sequence_name || ' owner to ' || quote_ident(E.schema_owner),
+      'grant all privileges on ' || S.sequence_schema || '.' || S.sequence_name || ' to ' || quote_ident(E.schema_owner)
+    from 
+      information_schema.sequences S
+      join information_schema.schemata E on (E.schema_name = S.sequence_schema)
+      join pg_class C on (C.relname = S.sequence_name)
+        join pg_user U on (U.usesysid = C.relowner)
+    where U.usename <> E.schema_owner
+    union
+    -- Funcoes
+    select 
+      4, 'alter function ' || suporte.fc_assinatura_funcao(E.nspname, F.proname || '_' || F.oid) || ' owner to ' || quote_ident(UE.usename),
+      'grant all privileges on function ' || suporte.fc_assinatura_funcao(E.nspname, F.proname || '_' || F.oid) || ' to ' || quote_ident(UE.usename)
+    from 
+      pg_proc F
+      join pg_user UF on (UF.usesysid = F.proowner)
+      join pg_namespace E  on (E.oid = F.pronamespace)
+        join pg_user UE on (UE.usesysid = E.nspowner)    
+    where prosrc <> 'aggregate_dummy' and UF.usename <> UE.usename
+    union
+    -- Funcoes de agregacao
+    select 
+      5, 'alter aggregate ' || suporte.fc_assinatura_funcao(E.nspname, F.proname || '_' || F.oid) || ' owner to ' || quote_ident(UE.usename),
+      'grant all privileges on function ' || suporte.fc_assinatura_funcao(E.nspname, F.proname || '_' || F.oid) || ' to ' || quote_ident(UE.usename)
+    from 
+      pg_proc F
+      join pg_user UF on (UF.usesysid = F.proowner)
+      join pg_namespace E  on (E.oid = F.pronamespace)
+        join pg_user UE on (UE.usesysid = E.nspowner)    
+    where prosrc = 'aggregate_dummy' and UF.usename <> UE.usename
+/*
+    union
+    -- Tipos
+    select 
+      6, 'alter type ' || E.schema_name || '.' || T.typname || ' owner to ' || E.schema_owner
+    from 
+      pg_type T
+      join pg_user U on (U.usesysid = T.typowner)
+      join pg_namespace NS on (NS.oid = T.typnamespace)
+        join information_schema.schemata E on E.schema_name = NS.nspname
+    where U.usename <> E.schema_owner and typtype <> 'c'
+*/
+    order by ordem
+  loop
+    execute comando.sql_1;
+    execute comando.sql_2;
+    v_retorno := v_retorno || comando.sql_1 || E'\r\n';
+  end loop;
+  if v_retorno = '' then
+      v_retorno := 'Nao foi encontrado nehuma tabela/sequencia/funcao para alterar o owner.';
+  end if;
+  return v_retorno;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_altera_para_owner_padrao() OWNER TO postgres;
+
+--
+-- TOC entry 26 (class 1255 OID 564869)
+-- Dependencies: 6 362
+-- Name: fc_assinatura_funcao(name, name); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_assinatura_funcao(p_specific_schema name, p_specific_name name) RETURNS character varying
+    LANGUAGE plpgsql
+    AS $$
+declare
+  parametro record;
+  v_assinatura varchar default '';
+  v_separador varchar default '';
+  v_esquema varchar default '';
+  v_rotina varchar default '';
+begin
+  select routine_schema, routine_name into v_esquema, v_rotina
+  from information_schema.routines
+  where
+    specific_schema = p_specific_schema and
+    specific_name = p_specific_name;
+
+  v_assinatura = v_esquema || '.' || v_rotina || '(';
+  for parametro in
+    select udt_name as tipo,
+      case parameter_mode 
+        when 'IN' then ''
+        else lower(parameter_mode) || ' '
+      end as modo
+    from information_schema.parameters
+    where 
+      parameter_mode in ('IN', 'INOUT') and
+      specific_schema = p_specific_schema and 
+      specific_name = p_specific_name
+    order by ordinal_position
+  loop
+    v_assinatura := v_assinatura || v_separador || parametro.modo || parametro.tipo;
+    v_separador := ', ';
+  end loop;
+  v_assinatura := v_assinatura || ')';
+
+  -- Return
+  return v_assinatura;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_assinatura_funcao(p_specific_schema name, p_specific_name name) OWNER TO postgres;
+
+--
+-- TOC entry 32 (class 1255 OID 564866)
+-- Dependencies: 362 6
+-- Name: fc_databases(); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_databases() RETURNS TABLE(database name, owner name, character_set name)
+    LANGUAGE plpgsql
+    AS $$
+begin
+  return query  
+		select 
+		  datname, u.usename, lower(pg_encoding_to_char(encoding))::name
+		from 
+		  pg_database d
+		  join pg_user u on u.usesysid = d.datdba
+		where
+		  datname not in ('template1', 'template0', 'postgres');  
+
+  return;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_databases() OWNER TO postgres;
+
+--
+-- TOC entry 37 (class 1255 OID 564871)
+-- Dependencies: 6 362
+-- Name: fc_excluir_papel(character varying, character varying); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_excluir_papel(p_papel character varying, p_esquema character varying) RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+declare 
+  v_retorno text default '';
+  comando record;
+  v_sql varchar;
+begin
+  -- Revoga o privilegio dos usuarios
+  for comando in 
+    select 'revoke ' || role_name || ' from ' || grantee as sql
+    from information_schema.applicable_roles
+    where role_name = p_papel
+  loop
+    execute comando.sql;
+    v_retorno := v_retorno || comando.sql || E'\r\n';
+  end loop;
+
+  -- Revoga os privilegios do papel nas tabelas
+  for comando in 
+    select 'revoke ' || privilege_type || ' on ' || table_schema || '.' || table_name || ' from ' || grantee as sql
+    from information_schema.table_privileges
+    where grantee = p_papel
+  loop
+    execute comando.sql;
+    v_retorno := v_retorno || comando.sql || E'\r\n';
+  end loop;
+
+  -- Revoga os provilegios do papel nas sequences
+  for comando in 
+    select 'revoke all privileges on ' || table_schema || '.' || table_name || ' from ' || p_papel as sql
+    from information_schema.views
+    where table_schema = p_esquema
+  loop
+    execute comando.sql;
+    v_retorno := v_retorno || comando.sql || E'\r\n';
+  end loop;  
+
+  -- Revoga os privilegios do papel nas visoes
+  for comando in 
+    select 'revoke all privileges on ' || sequence_schema || '.' || sequence_name || ' from ' || p_papel as sql
+    from information_schema.sequences
+    where sequence_schema = p_esquema
+  loop
+    execute comando.sql;
+    v_retorno := v_retorno || comando.sql || E'\r\n';
+  end loop;  
+
+  -- Revoga os privilegios do papel nas funcoes
+  for comando in 
+    select 
+      'revoke ' || lower(privilege_type) || ' on function ' || suporte.assinatura_funcao(routine_schema, routine_name) || 
+      ' from ' || grantee as sql
+    from information_schema.routine_privileges
+    where grantee = p_papel
+  loop
+    execute comando.sql;
+    v_retorno := v_retorno || comando.sql || E'\r\n';
+  end loop;
+  
+  -- Revoga os privilegios do papel no esquema
+  v_sql := 'revoke all privileges on schema ' || p_esquema || ' from ' || p_papel;
+  execute v_sql;
+  v_retorno := v_retorno || v_sql || E'\r\n';
+  
+  -- Exclui o papel
+  v_sql := 'drop role ' || p_papel;
+  execute v_sql;
+  v_retorno := v_retorno || v_sql || E'\r\n';
+  
+  -- retorna o resultado
+  return v_retorno;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_excluir_papel(p_papel character varying, p_esquema character varying) OWNER TO postgres;
+
+--
+-- TOC entry 23 (class 1255 OID 564879)
+-- Dependencies: 6 362
+-- Name: fc_fk_colunas(oid, character varying); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_fk_colunas(p_oid_fk oid, p_tipo_coluna character varying) RETURNS SETOF integer
+    LANGUAGE plpgsql
+    AS $$
+declare
+  r_fk record;
+begin
+  -- Tipo coluna: fk -> Foreign key; pk -> primary key
+  -- Obtem o constraint de Foreign key
+  select conkey, confkey into r_fk
+  from pg_catalog.pg_constraint c
+  where c.oid = p_oid_fk;
+
+  -- Obtem as coluas
+  if p_tipo_coluna = 'fk' then
+    for I in array_lower(r_fk.conkey, 1)..array_upper(r_fk.conkey, 1) loop
+      return next r_fk.conkey[I];
+    end loop;
+  elsif p_tipo_coluna = 'pk' then
+    for I in array_lower(r_fk.confkey, 1)..array_upper(r_fk.confkey, 1) loop
+      return next r_fk.confkey[I];
+    end loop;
+  else
+    return next null;  
+  end if;
+
+  -- retorna o resultado
+  return;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_fk_colunas(p_oid_fk oid, p_tipo_coluna character varying) OWNER TO postgres;
+
+--
+-- TOC entry 25 (class 1255 OID 564867)
+-- Dependencies: 6 362
+-- Name: fc_gera_create_databases(); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_gera_create_databases() RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+declare
+  banco record;
+  v_retorno text default '';
+begin
+  for banco in
+    select *
+    from suporte.fc_databases()
+  loop
+    -- monta os comandos de create database
+    v_retorno := v_retorno || 'create database ' || banco.database || 
+      ' with encoding=''' || banco.character_set || ''' owner=' || banco.owner ||
+      ' template=template1;' || E'\n';		  
+  end loop;
+
+  -- Retorno
+  return v_retorno;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_gera_create_databases() OWNER TO postgres;
+
+--
+-- TOC entry 31 (class 1255 OID 564868)
+-- Dependencies: 6 362
+-- Name: fc_gera_pg_restore_databases(character varying, character varying); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_gera_pg_restore_databases(p_prefixo character varying, p_sufixo character varying) RETURNS text
+    LANGUAGE plpgsql
+    AS $_$
+declare
+  banco record;
+  v_retorno text default '';
+begin
+  for banco in
+    select *
+    from suporte.fc_databases()
+  loop
+    -- monta os comandos de create database
+    v_retorno := v_retorno || 'pg_restore -h ${HOST} -p ${PORT} -U ${USER} -d ' || banco.database || 
+      ' -F c -v ' || p_prefixo || '-' || banco.database || '-' || p_sufixo ||
+      '.dmp 2>>import-' || banco.database || '.log' || E'\n';		  
+  end loop;
+
+  -- Retorno
+  return v_retorno;
+end;
+$_$;
+
+
+ALTER FUNCTION suporte.fc_gera_pg_restore_databases(p_prefixo character varying, p_sufixo character varying) OWNER TO postgres;
+
+--
+-- TOC entry 24 (class 1255 OID 564891)
+-- Dependencies: 6 362
+-- Name: fc_gera_script_delete_all(name, character varying, boolean); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_gera_script_delete_all(p_esquema name, p_dblink character varying DEFAULT NULL::character varying, p_incluir_outros_esquemas boolean DEFAULT false) RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+declare 
+  v_retorno text default '';
+  v_linha text default '';
+  r_tabela record;
+  r_fk record;
+begin
+  -- cria uma tabela temporaria
+  drop table if exists tmp_fc_gera_script_delete_all;
+  create  local temporary table tmp_fc_gera_script_delete_all (
+    ordem, esquema, tabela, auto_fk, fk_ciclica, oid
+  ) as 
+  select 
+    ordem, esquema, tabela, auto_fk, fk_ciclica, oid
+  from suporte.fc_tabelas_ordenar_por_fk(p_esquema, p_incluir_outros_esquemas);
+
+  -- Monta a instrucao de abertura da conexao
+  if p_dblink is not null then
+    v_retorno := '-- Abre a conexao com o banco remoto' || E'\r\n';
+    v_retorno := repeat('-', length(v_retorno)) || E'\r\n' || v_retorno || repeat('-', length(v_retorno)) || E'\r\n';
+    v_linha := 'select dblink_connect(''' || p_dblink || ''', ''dbname=BANCO hostaddr=HOST user=USUARIO password=SENHA port=5432'');' || E'\r\n';
+    v_retorno := v_retorno || v_linha || E'\r\n';
+  end if;
+
+  -- Monta as instrucoes de exclusao
+  for r_tabela in
+    select 
+      esquema, tabela, auto_fk, fk_ciclica, oid
+    from tmp_fc_gera_script_delete_all
+    order by ordem desc
+  loop
+    v_linha := '-- ' || r_tabela.esquema || '.' || r_tabela.tabela || E'\r\n';
+    v_linha := repeat('-', length(v_linha)) || E'\r\n' || v_linha || repeat('-', length(v_linha)) || E'\r\n';
+
+    -- Se a tabela tiver auto relacionamento e relacionamentos ciclicos altera as colunas dos filhos para nulo
+    if r_tabela.auto_fk or r_tabela.fk_ciclica then
+      for r_fk in 
+        select esquema_tabela, nome_tabela, nome_fk, oid_fk
+        from suporte.vw_tabelas_fk fk
+        where 
+          fk.oid_referencia = r_tabela.oid and
+          exists (
+            select 1
+            from suporte.vw_tabelas_fk r
+            where
+              r.oid_tabela = fk.oid_referencia and 
+              r.oid_referencia = fk.oid_tabela
+          )
+      loop
+        v_linha := v_linha || '-- ' || r_fk.nome_fk || E'\r\n';
+        v_linha := v_linha || suporte.fc_gera_sql_update(r_fk.esquema_tabela, r_fk.nome_tabela, p_dblink, r_fk.oid_fk) || E'\r\n';
+
+      end loop;
+    end if;
+    v_retorno := v_retorno || v_linha;
+    select suporte.fc_gera_sql_delete(r_tabela.esquema, r_tabela.tabela, p_dblink) into v_linha;
+    v_retorno := v_retorno || v_linha || E'\r\n';
+  end loop;
+
+  -- Monta a instrucao de fechamento da conexao
+  if p_dblink is not null then
+    v_retorno := v_retorno || repeat('-', 39) || E'\r\n';
+    v_retorno := E'\r\n' || v_retorno || '-- Fecha a conexao com o banco remoto' || E'\r\n';
+    v_retorno := v_retorno || repeat('-', 39) || E'\r\n';
+    v_linha := 'select dblink_disconnect(''' || p_dblink || ''');' || E'\r\n';
+    v_retorno := v_retorno || v_linha || E'\r\n';
+  end if;
+
+  -- Reinicia as sequencias
+  v_retorno := v_retorno || repeat('-', 27) || E'\r\n';
+  v_retorno := E'\r\n' || v_retorno || '-- Reinicia as sequencias' || E'\r\n';
+  v_retorno := v_retorno || repeat('-', 27) || E'\r\n';
+  for r_tabela in
+    select distinct esquema
+    from tmp_fc_gera_script_delete_all
+  loop
+    v_linha := 'select suporte.fc_reiniciar_sequencias(''' || r_tabela.esquema || ''');' || E'\r\n';
+    v_retorno := v_retorno || v_linha;
+  end loop;
+
+  -- retorna o resultado
+  return v_retorno;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_gera_script_delete_all(p_esquema name, p_dblink character varying, p_incluir_outros_esquemas boolean) OWNER TO postgres;
+
+--
+-- TOC entry 38 (class 1255 OID 564893)
+-- Dependencies: 6 362
+-- Name: fc_gera_script_esquema_remoto(name, character varying, character varying, character varying); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_gera_script_esquema_remoto(p_esquema name, p_foreign_data_wrapper character varying DEFAULT 'fdw_localhost'::character varying, p_foreign_server character varying DEFAULT NULL::character varying, p_nome_papel_apl character varying DEFAULT 'NOME_PAPEL_APL'::character varying) RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+declare 
+  v_retorno text default '';
+  v_comando text default '';
+  v_foreign_data_wrapper text default p_foreign_data_wrapper;
+  v_foreign_server text default coalesce(p_foreign_server, 'fdb_' || current_database() || '_' || p_esquema);
+  v_nome_papel_apl text default p_nome_papel_apl;
+  r_tabela record;
+  r_tipo record;
+  v_linha_c text default '';
+  v_linha_r text default '';
+  v_sub_consulta text default '';
+begin
+  -- Cria o foreign data wrapper
+  v_comando := '-- Cria o foreign data wrapper ' || E'\n';
+  v_comando := v_comando || 'create foreign data wrapper ' || v_foreign_data_wrapper || E'\n'; 
+  v_comando := v_comando || '  options (hostaddr ''IP'', port ''PORTA''); ' || E'\n'; 
+  v_retorno := v_retorno || v_comando || E'\n';
+  
+  -- Cria o foreign server
+  v_comando := '-- Cria o foreign data wrapper ' || E'\n';
+  v_comando := v_comando || 'create server ' || v_foreign_server || ' foreign data wrapper ' || 
+    v_foreign_data_wrapper || E'\n';
+  v_comando := v_comando || '  options (dbname ''NOME_BANCO'', user ''NOME_USUARIO_GUEST'', password ''SENHA'');' || E'\n';
+  v_retorno := v_retorno || v_comando || E'\n';
+
+  -- Cria o esquema e o papel
+  v_comando := '-- Cria o esquema e o papel ' || E'\n';
+  v_comando := v_comando || 'create schema ' || p_esquema || ' authorization da;' || E'\n';
+  v_comando := v_comando || 'create role ' || v_nome_papel_apl || ';' || E'\n';
+  v_comando := v_comando || 'grant usage on schema ' ||p_esquema || ' to ' || v_nome_papel_apl || ';' || E'\n';
+  v_retorno := v_retorno || v_comando || E'\n';
+  
+  -- Mapeia as tabelas e visoes
+  for r_tipo in
+    select unnest(ARRAY['BASE TABLE', 'VIEW']) as nome
+    order by nome
+  loop
+    v_retorno := v_retorno || E'\n' || '-- Mapeia as ' || r_tipo.nome || E'\n' || E'\n';
+    for r_tabela in
+      select table_schema as esquema, table_name as tabela
+      from information_schema.tables
+      where 
+        table_schema = p_esquema and
+        table_type = r_tipo.nome
+    loop
+      -- Monta a linha do select
+      select array_to_string(array(
+        select nome
+        from suporte.fc_tabela_colunas(r_tabela.esquema, r_tabela.tabela)
+        order by ordem
+      ), ', ') into v_linha_c;
+      -- Monta a linha do registro
+      select array_to_string(array(
+        select nome || ' ' || tipo
+        from suporte.fc_tabela_colunas(r_tabela.esquema, r_tabela.tabela)
+        order by ordem
+      ), ', ') into v_linha_r;
+      -- Monta a subconsulta
+      v_sub_consulta := 'select ' || v_linha_c || ' from ' || r_tabela.esquema || '.' || r_tabela.tabela;
+      -- Monta o comando
+      v_comando := '-- Mapeia a ' || r_tipo.nome || ' ' || r_tabela.tabela || E'\n';
+      v_comando := v_comando || 'create or replace view ' || r_tabela.esquema || '.' || r_tabela.tabela || ' as ' || E'\n';
+      v_comando := v_comando || 'select ' || E'\n';
+      v_comando := v_comando || '  ' || v_linha_c || E'\n';
+      v_comando := v_comando || 'from ' || E'\n';
+      v_comando := v_comando || '  dblink(' || quote_literal(v_foreign_server) || ', ' || E'\n';
+      v_comando := v_comando || '    ' || quote_literal(v_sub_consulta) || E'\n';
+      v_comando := v_comando || '  ) r( ' || E'\n';
+      v_comando := v_comando || '    ' || v_linha_r || E'\n';
+      v_comando := v_comando || '  );' || E'\n';
+      v_comando := v_comando || 'alter table ' || r_tabela.esquema || '.' || r_tabela.tabela || ' owner to da;' || E'\n';
+      v_comando := v_comando || 'grant select on ' || r_tabela.esquema || '.' || r_tabela.tabela || ' to ' || v_nome_papel_apl || ';' || E'\n';
+      v_retorno := v_retorno || v_comando || E'\n';
+    end loop;
+  end loop;
+
+  -- retorna o resultado
+  return v_retorno;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_gera_script_esquema_remoto(p_esquema name, p_foreign_data_wrapper character varying, p_foreign_server character varying, p_nome_papel_apl character varying) OWNER TO postgres;
+
+--
+-- TOC entry 22 (class 1255 OID 564890)
+-- Dependencies: 362 6
+-- Name: fc_gera_script_insert_all(name, character varying, boolean); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_gera_script_insert_all(p_esquema name, p_dblink character varying DEFAULT NULL::character varying, p_incluir_outros_esquemas boolean DEFAULT false) RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+declare 
+  v_retorno text default '';
+  v_linha text default '';
+  r_tabela record;
+  r_fk record;
+begin
+  -- cria uma tabela temporaria
+  drop table if exists tmp_fc_gera_script_insert_all;
+  create  local temporary table tmp_fc_gera_script_insert_all (
+    ordem, esquema, tabela, auto_fk, fk_ciclica, oid
+  ) as 
+  select 
+    ordem, esquema, tabela, auto_fk, fk_ciclica, oid
+  from suporte.fc_tabelas_ordenar_por_fk(p_esquema, p_incluir_outros_esquemas);
+
+  -- Monta a instrucao de abertura da conexao
+  if p_dblink is not null then
+    v_retorno := '-- Abre a conexao com o banco remoto' || E'\r\n';
+    v_retorno := repeat('-', length(v_retorno)) || E'\r\n' || v_retorno || repeat('-', length(v_retorno)) || E'\r\n';
+    v_linha := 'select dblink_connect(''' || p_dblink || ''', ''dbname=BANCO hostaddr=HOST user=USUARIO password=SENHA port=5432'');' || E'\r\n';
+    v_retorno := v_retorno || v_linha || E'\r\n';
+  end if;
+
+  -- Monta as instrucoes de inclusao
+  for r_tabela in
+    select 
+      esquema, tabela, auto_fk, fk_ciclica, oid
+    from tmp_fc_gera_script_insert_all
+    order by ordem
+  loop
+    v_linha := '-- ' || r_tabela.esquema || '.' || r_tabela.tabela || E'\r\n';
+    v_linha := repeat('-', length(v_linha)) || E'\r\n' || v_linha || repeat('-', length(v_linha)) || E'\r\n';
+
+    -- Se a tabela tiver auto relacionamento e relacionamentos ciclicos altera as colunas dos filhos para nulo
+    if r_tabela.auto_fk or r_tabela.fk_ciclica then
+      for r_fk in 
+        select esquema_tabela, nome_tabela, nome_fk, oid_fk
+        from suporte.vw_tabelas_fk fk
+        where 
+          fk.oid_referencia = r_tabela.oid and
+          exists (
+            select 1
+            from suporte.vw_tabelas_fk r
+            where
+              r.oid_tabela = fk.oid_referencia and 
+              r.oid_referencia = fk.oid_tabela
+          )
+      loop
+        v_linha := v_linha || '-- ' || r_fk.nome_fk || E'\r\n';
+        v_linha := v_linha || '-- Falta tratar os relacionamentos' || E'\r\n';
+
+      end loop;
+    end if;
+    v_retorno := v_retorno || v_linha;
+    select suporte.fc_gera_sql_insert(r_tabela.esquema, r_tabela.tabela, p_dblink, null) into v_linha;
+    v_retorno := v_retorno || v_linha || E'\r\n';
+  end loop;
+
+  -- Monta a instrucao de fechamento da conexao
+  if p_dblink is not null then
+    v_retorno := v_retorno || repeat('-', 39) || E'\r\n';
+    v_retorno := E'\r\n' || v_retorno || '-- Fecha a conexao com o banco remoto' || E'\r\n';
+    v_retorno := v_retorno || repeat('-', 39) || E'\r\n';
+    v_linha := 'select dblink_disconnect(''' || p_dblink || ''');' || E'\r\n';
+    v_retorno := v_retorno || v_linha || E'\r\n';
+  end if;
+
+  -- Reinicia as sequencias
+  v_retorno := v_retorno || repeat('-', 27) || E'\r\n';
+  v_retorno := E'\r\n' || v_retorno || '-- Reinicia as sequencias' || E'\r\n';
+  v_retorno := v_retorno || repeat('-', 27) || E'\r\n';
+  for r_tabela in
+    select distinct esquema
+    from tmp_fc_gera_script_insert_all
+  loop
+    v_linha := 'select suporte.fc_reiniciar_sequencias(''' || r_tabela.esquema || ''');' || E'\r\n';
+    v_retorno := v_retorno || v_linha;
+  end loop;
+
+  -- retorna o resultado
+  return v_retorno;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_gera_script_insert_all(p_esquema name, p_dblink character varying, p_incluir_outros_esquemas boolean) OWNER TO postgres;
+
+--
+-- TOC entry 39 (class 1255 OID 564892)
+-- Dependencies: 362 6
+-- Name: fc_gera_script_update_all(name, character varying, boolean); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_gera_script_update_all(p_esquema name, p_dblink character varying DEFAULT NULL::character varying, p_incluir_outros_esquemas boolean DEFAULT false) RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+declare 
+  v_retorno text default '';
+  v_linha text default '';
+  r_tabela record;
+  r_fk record;
+begin
+  -- cria uma tabela temporaria
+  drop table if exists tmp_fc_gera_script_update_all;
+  create  local temporary table tmp_fc_gera_script_update_all (
+    ordem, esquema, tabela, auto_fk, fk_ciclica, oid
+  ) as 
+  select 
+    ordem, esquema, tabela, auto_fk, fk_ciclica, oid
+  from suporte.fc_tabelas_ordenar_por_fk(p_esquema, p_incluir_outros_esquemas);
+
+  -- Monta a instrucao de abertura da conexao
+  if p_dblink is not null then
+    v_retorno := '-- Abre a conexao com o banco remoto' || E'\r\n';
+    v_retorno := repeat('-', length(v_retorno)) || E'\r\n' || v_retorno || repeat('-', length(v_retorno)) || E'\r\n';
+    v_linha := 'select dblink_connect(''' || p_dblink || ''', ''dbname=BANCO hostaddr=HOST user=USUARIO password=SENHA port=5432'');' || E'\r\n';
+    v_retorno := v_retorno || v_linha || E'\r\n';
+  end if;
+
+  -- Monta as instrucoes de atualizacao
+  for r_tabela in
+    select 
+      esquema, tabela, auto_fk, fk_ciclica, oid
+    from tmp_fc_gera_script_update_all
+    order by ordem
+  loop
+    v_linha := '-- ' || r_tabela.esquema || '.' || r_tabela.tabela || E'\r\n';
+    v_linha := repeat('-', length(v_linha)) || E'\r\n' || v_linha || repeat('-', length(v_linha)) || E'\r\n';
+    v_retorno := v_retorno || v_linha || suporte.fc_gera_sql_update(r_tabela.esquema, r_tabela.tabela, p_dblink, null) || E'\r\n';
+  end loop;
+
+  -- Monta a instrucao de fechamento da conexao
+  if p_dblink is not null then
+    v_retorno := v_retorno || repeat('-', 39) || E'\r\n';
+    v_retorno := E'\r\n' || v_retorno || '-- Fecha a conexao com o banco remoto' || E'\r\n';
+    v_linha := 'select dblink_disconnect(''' || p_dblink || ''');' || E'\r\n';
+    v_retorno := v_retorno || repeat('-', 37) || E'\r\n';
+    v_retorno := v_retorno || v_linha || E'\r\n';
+  end if;
+
+  -- Reinicia as sequencias
+  v_retorno := v_retorno || repeat('-', 27) || E'\r\n';
+  v_retorno := E'\r\n' || v_retorno || '-- Reinicia as sequencias' || E'\r\n';
+  v_retorno := v_retorno || repeat('-', 27) || E'\r\n';
+  for r_tabela in
+    select distinct esquema
+    from tmp_fc_gera_script_update_all
+  loop
+    v_linha := 'select suporte.fc_reiniciar_sequencias(''' || r_tabela.esquema || ''');' || E'\r\n';
+    v_retorno := v_retorno || v_linha;
+  end loop;
+
+  -- retorna o resultado
+  return v_retorno;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_gera_script_update_all(p_esquema name, p_dblink character varying, p_incluir_outros_esquemas boolean) OWNER TO postgres;
+
+--
+-- TOC entry 35 (class 1255 OID 564881)
+-- Dependencies: 362 6
+-- Name: fc_gera_sql_delete(name, name, character varying); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_gera_sql_delete(p_esquema name, p_tabela name, p_dblink character varying) RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+declare 
+  v_retorno text default '';
+  v_linha text default '';
+  v_registro text default '';
+  v_where text default '';
+  coluna record;
+begin
+  for coluna in 
+    select ordem, nome, tipo, posicao_pk
+    from suporte.fc_tabela_colunas(p_esquema, p_tabela, null)
+    where posicao_pk is not null
+    order by ordem
+  loop
+    -- Monta a linha com apenas o nome da coluna
+    if v_linha = '' then
+      v_linha := v_linha  || coluna.nome;
+    else
+      v_linha := v_linha  || ', ' || coluna.nome;
+    end if;
+
+    -- Monta o registro com o nome da coluna e o seu tipo
+    if v_registro = '' then
+      v_registro := v_registro || coluna.nome || ' ' || coluna.tipo;
+    else
+      v_registro := v_registro || ', ' || coluna.nome || ' ' || coluna.tipo;
+    end if;
+    -- Monta os itens da clausula where
+    if v_where = '' then
+      v_where := v_where || coluna.nome || ' = L.' || coluna.nome;
+    else
+      v_where := v_where || ' and ' || coluna.nome || ' = L.' || coluna.nome;
+    end if;
+  end loop;
+  -- Monta o sql
+  if p_dblink is null then
+    v_retorno := 'delete from ' || p_esquema || '.' || p_tabela || ';' || E'\r\n';
+  else
+    v_retorno := 'delete from ' || p_esquema || '.' || p_tabela || ' L ' || E'\r\n';
+    v_retorno := v_retorno || 'where not exists (' || E'\r\n';
+    v_retorno := v_retorno || '  select 1 from ' || E'\r\n';
+    v_retorno := v_retorno || '    dblink(''' || p_dblink || ''', ''select ' || v_linha || 
+      ' from ' || p_esquema || '.' || p_tabela || ''') as ' || E'\r\n';
+    v_retorno := v_retorno || '    R(' || v_registro || ')' || E'\r\n';
+    v_retorno := v_retorno || '  where ' || v_where || ');' || E'\r\n';
+  end if;
+
+  return v_retorno;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_gera_sql_delete(p_esquema name, p_tabela name, p_dblink character varying) OWNER TO postgres;
+
+--
+-- TOC entry 21 (class 1255 OID 564882)
+-- Dependencies: 6 362
+-- Name: fc_gera_sql_insert(name, name, character varying, oid); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_gera_sql_insert(p_esquema name, p_tabela name, p_dblink character varying, p_oid_fk oid) RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+declare 
+  v_retorno text default '';
+  v_select text default '';
+  v_registro text default '';
+  v_sets text default '';
+  v_where text default '';
+  v_mensagem text default '';
+  r_coluna record;
+begin
+  for r_coluna in 
+    select ordem, nome, tipo, posicao_pk, permite_nulo
+    from suporte.fc_tabela_colunas(p_esquema, p_tabela, null)
+    where 
+      p_oid_fk is null or 
+      posicao_pk is not null or
+      ordem in (select * from suporte.fc_fk_colunas(p_oid_fk, 'fk'))
+    order by ordem
+  loop
+    -- Monta a clausula select com apenas o nome da coluna
+    if v_select = '' then
+      v_select := v_select  || r_coluna.nome;
+    else
+      v_select := v_select  || ', ' || r_coluna.nome;
+    end if;
+
+    -- Monta o registro com o nome da coluna e o seu tipo
+    if v_registro = '' then
+      v_registro := v_registro || r_coluna.nome || ' ' || r_coluna.tipo;
+    else
+      v_registro := v_registro || ', ' || r_coluna.nome || ' ' || r_coluna.tipo;
+    end if;
+
+    -- Testa se a coluna pertence a chave
+    if r_coluna.posicao_pk is not null then
+      if p_dblink is not null then
+        -- Se existe dblink, monta a clausula where
+        if v_where = '' then
+          v_where := v_where || r_coluna.nome || ' = R.' || r_coluna.nome;
+        else
+          v_where := v_where || E'\r\n' || ' and ' || r_coluna.nome || ' = R.' || r_coluna.nome;
+        end if;
+      end if;
+    end if;
+
+  end loop;
+  -- Monta o sql
+	if p_dblink is null then
+		v_retorno := 'insert into ' || p_esquema || '.' || p_tabela || E'\n';
+		v_retorno := v_retorno || '  (' || v_select || ')' || E'\n';
+		v_retorno := v_retorno || 'values ' || E'\n';
+		v_retorno := v_retorno || '  (' || v_select || ');' || E'\n';
+	else
+		v_retorno := 'insert into ' || p_esquema || '.' || p_tabela || E'\n';
+		v_retorno := v_retorno || '  (' || v_select || ')' || E'\n';
+		v_retorno := v_retorno || 'select * from ' || E'\n';
+		v_retorno := v_retorno || '  dblink(''' || p_dblink || ''', ''select ' || v_select || ' from ' || p_esquema || 
+		  '.' || p_tabela || ''') as ' || E'\n';
+		v_retorno := v_retorno || '  R(' || v_registro || ')' || E'\n';
+		v_retorno := v_retorno || 'where not exists (';
+		v_retorno := v_retorno || 'select 1 from ' || p_esquema || '.' || p_tabela;
+		v_retorno := v_retorno || ' where ' || v_where || ');' || E'\n';
+	end if;
+  
+  return v_retorno;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_gera_sql_insert(p_esquema name, p_tabela name, p_dblink character varying, p_oid_fk oid) OWNER TO postgres;
+
+--
+-- TOC entry 33 (class 1255 OID 564884)
+-- Dependencies: 6 362
+-- Name: fc_gera_sql_select(name, name, character varying); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_gera_sql_select(p_esquema name, p_tabela name, p_dblink character varying) RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+declare 
+  v_retorno text := '';
+  v_linha text := '';
+  v_registro text := '';
+  v_where text := '';
+  coluna record;
+begin
+  for coluna in 
+    select ordem, nome, tipo, posicao_pk
+    from suporte.fc_tabela_colunas(p_esquema, p_tabela, null)
+    order by ordem
+  loop
+    -- Monta a linha com apenas o nome da coluna
+    if v_linha = '' then
+      v_linha := v_linha  || coluna.nome;
+    else
+      v_linha := v_linha  || ', ' || coluna.nome;
+    end if;
+
+    -- Monta o registro com o nome da coluna e o seu tipo
+    if v_registro = '' then
+      v_registro := v_registro || coluna.nome || ' ' || coluna.tipo;
+    else
+      v_registro := v_registro || ', ' || coluna.nome || ' ' || coluna.tipo;
+    end if;
+
+    -- Testa se a coluna pertence a chave
+    if coluna.posicao_pk is not null then
+      -- Monta os itens da clausula where
+      if v_where = '' then
+        v_where := v_where || coluna.nome || ' = R.' || coluna.nome;
+      else
+        v_where := v_where || ' and ' || coluna.nome || ' = R.' || coluna.nome;
+      end if;
+    end if;
+
+  end loop;
+  -- Monta o sql
+	if p_dblink is null then
+    v_retorno := v_retorno || 'select * ' || E'\n';
+    v_retorno := v_retorno || 'from ' || p_esquema || '.' || p_tabela || E'\n';
+    v_retorno := v_retorno || 'where ' || v_where || ';' || E'\n';
+  else
+    v_retorno := v_retorno || 'select * from ' || E'\n';
+    v_retorno := v_retorno || '  dblink(''' || p_dblink || ''', ''select ' || v_linha || ' from ' || p_esquema || 
+      '.' || p_tabela || ''') as ' || E'\n';
+    v_retorno := v_retorno || '  R(' || v_registro || ');' || E'\n';
+  end if;
+
+  return v_retorno;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_gera_sql_select(p_esquema name, p_tabela name, p_dblink character varying) OWNER TO postgres;
+
+--
+-- TOC entry 34 (class 1255 OID 564883)
+-- Dependencies: 6 362
+-- Name: fc_gera_sql_update(name, name, character varying, oid); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_gera_sql_update(p_esquema name, p_tabela name, p_dblink character varying, p_oid_fk oid) RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+declare 
+  v_retorno text default '';
+  v_select text default '';
+  v_registro text default '';
+  v_sets text default '';
+  v_where text default '';
+  v_mensagem text default '';
+  r_coluna record;
+begin
+  for r_coluna in 
+    select ordem, nome, tipo, posicao_pk, permite_nulo
+    from suporte.fc_tabela_colunas(p_esquema, p_tabela, null)
+    where 
+      p_oid_fk is null or 
+      posicao_pk is not null or
+      ordem in (select * from suporte.fc_fk_colunas(p_oid_fk, 'fk'))
+    order by ordem
+  loop
+    if p_dblink is not null then
+      -- Monta a clausula select com apenas o nome da coluna
+      if v_select = '' then
+        v_select := v_select  || r_coluna.nome;
+      else
+        v_select := v_select  || ', ' || r_coluna.nome;
+      end if;
+
+      -- Monta o registro com o nome da coluna e o seu tipo
+      if v_registro = '' then
+        v_registro := v_registro || r_coluna.nome || ' ' || r_coluna.tipo;
+      else
+        v_registro := v_registro || ', ' || r_coluna.nome || ' ' || r_coluna.tipo;
+      end if;
+    end if;
+    
+    -- Testa se a coluna pertence a chave
+    if r_coluna.posicao_pk is not null then
+      if p_dblink is not null then
+        -- Se existe dblink, monta a clausula where
+        if v_where = '' then
+          v_where := v_where || '  L.' || r_coluna.nome || ' = R.' || r_coluna.nome;
+        else
+          v_where := v_where || E'\r\n' || '  and L.' || r_coluna.nome || ' = R.' || r_coluna.nome;
+        end if;
+      end if;
+    else
+      -- Monta os itens da clausula set
+      -- Verifica se e alteracao de chave estrangeira
+      if p_oid_fk is null then
+        -- Verifica se existe dblink
+        if p_dblink is null then
+          -- Se nao tem dblink, seta nulo para as colunas que termitem
+          if r_coluna.permite_nulo then
+            if v_sets = '' then
+              v_sets := v_sets || '  ' || r_coluna.nome || ' = null';
+            else
+              v_sets := v_sets || ',' || E'\r\n' || '  ' || r_coluna.nome || ' = null';
+            end if;
+          else
+            v_mensagem := v_mensagem || '-- Coluna ' || r_coluna.nome || ' nao permite nulo.' || E'\r\n';
+          end if;
+        else
+          -- Se tem dblink, seta o valor do registro remoto
+          if v_sets = '' then
+            v_sets := v_sets || '  ' || r_coluna.nome || ' = R.' || r_coluna.nome;
+          else
+            v_sets := v_sets || ',' || E'\r\n' || '  ' || r_coluna.nome || ' = R.' || r_coluna.nome;
+          end if;
+        end if;
+      else
+        -- Seta nulo as colunas da chave estrangeira que permitirem
+        if r_coluna.permite_nulo then
+          if v_sets = '' then
+            v_sets := v_sets || '  ' || r_coluna.nome || ' = null';
+          else
+            v_sets := v_sets || ',' || E'\r\n' || '  ' || r_coluna.nome || ' = null';
+          end if;
+        else
+          v_mensagem := v_mensagem || '-- Coluna ' || r_coluna.nome || ' nao permite nulo.' || E'\r\n';
+        end if;
+      end if;
+    end if;
+  end loop;
+  
+  -- Monta o sql
+  if v_sets = '' then 
+    if v_mensagem = '' then
+      v_retorno := '-- Todas as colunas da tabela ' || p_esquema || '.' || p_tabela || ' fazem parte da chave.' || E'\r\n';
+    else
+      v_retorno := '-- Todas as colunas da tabela ' || p_esquema || '.' || p_tabela || ' nao permitem nulo.' || E'\r\n';
+    end if;
+  else
+    if p_dblink is not null then
+      v_retorno := 'update ' || p_esquema || '.' || p_tabela || ' as L set ' || E'\r\n';
+      if v_mensagem <> '' then
+        v_retorno := v_retorno || v_mensagem || E'\r\n';
+      end if;
+      v_retorno := v_retorno || v_sets || E'\r\n';
+      v_retorno := v_retorno || 'from ' || E'\r\n';
+      v_retorno := v_retorno || '  dblink(''' || p_dblink || ''', ''select ' || v_select || ' from ' || p_esquema || '.' || p_tabela || ''') as ' || E'\r\n';
+      v_retorno := v_retorno || '  R(' || v_registro || ')' || E'\r\n';
+      v_retorno := v_retorno || 'where ' || E'\r\n';
+      v_retorno := v_retorno || v_where || ';' || E'\r\n';
+    else
+      v_retorno := 'update ' || p_esquema || '.' || p_tabela || ' as L set ' || E'\r\n';
+      v_retorno := v_retorno || v_sets || ';' || E'\r\n';
+    end if;
+  end if;
+  
+  return v_retorno;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_gera_sql_update(p_esquema name, p_tabela name, p_dblink character varying, p_oid_fk oid) OWNER TO postgres;
+
+--
+-- TOC entry 30 (class 1255 OID 564872)
+-- Dependencies: 6 362
+-- Name: fc_privilegios_padroes(); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_privilegios_padroes() RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+declare 
+  v_retorno text default '';
+  esquema record;
+  comando record;
+  v_role varchar := '';
+  v_database text default null;
+begin
+  -- permissao de connect para o grupo do banco
+    if (select false from pg_roles where rolname = current_database()) is null then
+      execute 'create role ' || current_database();
+      execute 'grant connect, temporary on database ' || current_database() || ' to ' || current_database();
+    end if;
+
+  for esquema in
+    select schema_name as name, schema_owner
+    from information_schema.schemata
+    where schema_owner <> 'postgres'
+  loop
+    v_role := 'r_' || current_database() || '_' || esquema.name || '_apl';
+    if (select false from pg_roles where rolname = v_role) is null then
+      execute 'create role ' || v_role;
+      execute 'grant ' || current_database() || ' to ' || v_role;
+    end if;
+    execute 'grant usage on schema ' || esquema.name || ' to ' || v_role;
+    for comando in 
+      -- Tabelas
+      select
+        'grant select, insert, update, delete on ' || schemaname || '.' || tablename || ' to ' || v_role as sql
+      from pg_tables
+      where schemaname = esquema.name
+      union
+      -- Sequencias
+      select
+        'grant usage, select, update on ' || sequence_schema || '.' || sequence_name || ' to ' || v_role
+      from 
+        information_schema.sequences
+      where sequence_schema = esquema.name
+      union
+      -- Rotinas
+      select 
+        'grant execute on function ' || suporte.fc_assinatura_funcao(specific_schema, specific_name) || ' to ' || v_role
+      from information_schema.routines
+      where routine_definition <> 'aggregate_dummy' and routine_schema = esquema.name
+      union
+      -- Rotinas aggregate
+      select 
+        'grant execute on function ' || suporte.fc_assinatura_funcao(specific_schema, specific_name) || ' to ' || v_role
+      from information_schema.routines
+      where routine_definition <> 'aggregate_dummy' and routine_schema = esquema.name
+      union
+      -- Visoes
+			select 
+			  'grant select on ' || table_schema || '.' || table_name || ' to ' || v_role
+			from information_schema.views
+			where table_schema = esquema.name      
+    loop
+      execute comando.sql;
+      v_retorno := v_retorno || comando.sql || E'\r\n';
+    end loop;
+  end loop;
+  return v_retorno;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_privilegios_padroes() OWNER TO postgres;
+
+--
+-- TOC entry 36 (class 1255 OID 564873)
+-- Dependencies: 6 362
+-- Name: fc_reiniciar_sequencias(name); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_reiniciar_sequencias(p_esquema name) RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+declare 
+  v_retorno text := '';
+  v_sql varchar;
+  r_sequencia record;
+  r_comando record;
+  v_start bigint := 0;
+  v_union text := '';
+begin
+  -- cria tabela temporaria
+  drop table if exists tmp_fc_reiniciar_sequencias;
+  create local temporary table tmp_fc_reiniciar_sequencias (
+    nome_sequencia, esquema, tabela, coluna
+  ) as 
+  select 
+    substring(column_default from 10 for char_length(column_default) - 21) as nome,
+    table_schema, table_name, column_name
+  from information_schema.columns
+  where 
+    table_schema = p_esquema and
+    column_default like 'nextval(''%''::regclass)';
+
+  -- Reinicia a sequencia
+  for r_sequencia in
+    select nome_sequencia, count(1) as numero_tabelas
+    from tmp_fc_reiniciar_sequencias
+    group by nome_sequencia
+    order by numero_tabelas
+  loop
+    -- Monta o sql para obter o valor de inicializacao da sequencia
+    if r_sequencia.numero_tabelas = 1 then
+      -- Sequencia usada por uma coluna
+        select 
+          'select coalesce(max(' || coluna || '), 0) + 1 from ' || esquema || '.' || tabela into v_sql
+        from tmp_fc_reiniciar_sequencias
+        where nome_sequencia = r_sequencia.nome_sequencia;
+    else 
+      -- Sequencia usada por mais de uma coluna
+      v_sql := '';
+      v_union := '';
+      for r_comando in
+        select 
+          'select max(' || coluna || ') from ' || esquema || '.' || tabela as sql
+        from tmp_fc_reiniciar_sequencias
+        where nome_sequencia = r_sequencia.nome_sequencia
+      loop
+        v_sql := v_sql || v_union || r_comando.sql;
+        v_union := ' union ';
+      end loop; -- Sequencia usada por mais de uma coluna
+      
+      v_sql := 'select coalesce(max(max), 0) + 1 from ( ' || v_sql || ') a';
+    end if; -- Monta o sql para obter o valor de inicializacao da sequencia
+    -- Obtem o valor de inicializacao
+    execute v_sql into v_start;
+
+    v_sql := 'alter sequence ' || r_sequencia.nome_sequencia || ' restart with ' || v_start;
+    execute v_sql;
+    v_retorno := v_retorno || v_sql || e'\r\n';    
+  end loop; -- Reinicia a sequencia
+
+  if v_retorno = '' then
+      v_retorno := 'Nao foi encontrado nehuma sequencia para reiniciar.';
+  end if;
+  return v_retorno;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_reiniciar_sequencias(p_esquema name) OWNER TO postgres;
+
+--
+-- TOC entry 29 (class 1255 OID 564880)
+-- Dependencies: 6 362
+-- Name: fc_tabela_colunas(name, name, name); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_tabela_colunas(p_esquema name, p_tabela name, p_coluna name DEFAULT NULL::name) RETURNS TABLE(ordem integer, nome character varying, tipo character varying, valor_padrao character varying, permite_nulo boolean, posicao_pk integer)
+    LANGUAGE plpgsql
+    AS $$
+begin
+  return query
+    select 
+      cast(c.ordinal_position as integer), 
+			cast(c.column_name as varchar), 
+      coalesce(
+        c.domain_name,
+        case 
+          when c.udt_name in ('int4', 'int8') then c.data_type
+          when c.udt_name = 'varchar' then 'varchar(' || character_maximum_length || ')'
+          when c.udt_name = 'bpchar' then 'char(' || character_maximum_length || ')'
+          when c.udt_name = 'numeric' then 'numeric(' || numeric_precision || ',' || numeric_scale || ')'
+          else c.udt_name
+        end
+      ), 
+      cast(c.column_default as varchar), 
+			cast(c.is_nullable as boolean),
+      cast(kcu.ordinal_position as integer)
+    from
+      information_schema.columns c
+        left join information_schema.table_constraints tc on tc.table_schema = c.table_schema and tc.table_name = c.table_name and tc.constraint_type = 'PRIMARY KEY'
+          left join information_schema.key_column_usage kcu on kcu.constraint_schema = tc.constraint_schema and kcu.constraint_name = tc.constraint_name and kcu.column_name = c.column_name
+    where 
+      c.table_schema = p_esquema and 
+      c.table_name = p_tabela and
+      (p_coluna is null or c.column_name = p_coluna);
+  return;
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_tabela_colunas(p_esquema name, p_tabela name, p_coluna name) OWNER TO postgres;
+
+--
+-- TOC entry 28 (class 1255 OID 564888)
+-- Dependencies: 323 6 362
+-- Name: fc_tabelas_ordenar_por_fk(name, boolean); Type: FUNCTION; Schema: suporte; Owner: postgres
+--
+
+CREATE FUNCTION fc_tabelas_ordenar_por_fk(p_esquema name, p_incluir_outros_esquemas boolean DEFAULT false) RETURNS SETOF type_fc_tabelas_ordenar_por_fk
+    LANGUAGE plpgsql
+    AS $$
+declare 
+  r_tabela record;
+  r_tmp record;
+  r_filho record;
+  r_pai record;
+  r_atual record;
+  v_repete boolean default false;
+  v_iteracao integer default 0;
+  v_iteracao_max integer default 0;
+begin
+  -- prepara a tabela de apoio
+  drop table if exists tmp_tabelas;
+  create local temporary table tmp_tabelas (
+    id serial primary key,
+    oid oid not null,
+    banco name not null,
+    esquema name not null,
+    nome name not null,
+    id_anterior integer,
+    id_proximo integer,
+    auto_fk boolean default false,
+    fk_ciclica boolean default false,
+    ordem integer
+  );
+
+  -- seleciona as tabelas do esquema
+  insert into tmp_tabelas
+    (oid, banco, esquema, nome)
+  with 
+    ns (oid, nspname) 
+    as (
+      select oid, nspname 
+      from pg_catalog.pg_namespace
+    )
+  select
+    c.oid, t.table_catalog, t.table_schema, t.table_name
+  from 
+    information_schema.tables t 
+    join  ns on ns.nspname = t.table_schema
+      join pg_catalog.pg_class c on c.relname = t.table_name and c.relnamespace = ns.oid
+        left join suporte.vw_tabelas_fk fk on fk.oid_tabela = c.oid
+  where 
+    t.table_type = upper('base table') and
+    ns.nspname = p_esquema
+  group by c.oid, t.table_catalog, t.table_schema, t.table_name
+  order by count(oid_referencia);
+
+  -- obtem as tabelas relacionadas de outros esquemas e suas dependencias
+  if p_incluir_outros_esquemas then
+    loop
+      insert into tmp_tabelas
+        (oid, banco, esquema, nome)
+      select distinct on (v.oid_referencia) 
+        v.oid_referencia, v.banco_referencia, v.esquema_referencia, v.nome_referencia
+      from 
+        tmp_tabelas t
+        join suporte.vw_tabelas_fk v on v.oid_tabela = t.oid
+      where
+        v.oid_referencia not in (select oid from tmp_tabelas);
+
+      exit when not found;
+    end loop;
+  end if;
+
+  -- verifica se tem auto relacionamento
+  update tmp_tabelas t set
+    auto_fk = true
+  from suporte.vw_tabelas_fk v
+  where
+    v.oid_tabela = v.oid_referencia and
+    v.oid_tabela = t.oid;
+
+  -- verifica se tem referencia ciclica
+  update tmp_tabelas t set
+    fk_ciclica = exists (
+      select 1
+      from 
+        suporte.vw_tabelas_fk fk
+        join suporte.vw_tabelas_fk kf on kf.oid_tabela = fk.oid_referencia and kf.oid_referencia = fk.oid_tabela
+      where 
+        fk.oid_tabela <> fk.oid_referencia and
+        fk.oid_tabela = t.oid
+    );
+
+  -- monta a lista inicial
+  select min(id) as min, max(id) as max into r_atual
+  from tmp_tabelas;
+  update tmp_tabelas set
+    id_anterior = case when id = r_atual.min then null else id - 1 end,
+    id_proximo = case when id = r_atual.max then null else id + 1 end,
+    ordem = id;
+
+  -- arruma a lista de tabelas de acordo com os relacionamentos
+  -- calcula o numero maximo de iteracoes para evitar dead lock
+
+  select max(id) * 5 into v_iteracao_max
+  from tmp_tabelas
+  where not fk_ciclica;
+
+  loop
+    v_iteracao := v_iteracao + 1;
+    v_repete := false;
+    -- obtem o primeiro item da lista
+    select id, oid, id_anterior, id_proximo, fk_ciclica, ordem, false as trocar, nome into r_filho
+    from tmp_tabelas
+    where id_anterior is null;
+    loop
+      for r_pai in
+        select t.id, t.oid, t.id_anterior, t.id_proximo, t.fk_ciclica, fk.oid_fk, t.nome, fk.nome_fk
+        from 
+          suporte.vw_tabelas_fk fk
+          join tmp_tabelas t on t.oid = fk.oid_referencia
+        where
+          fk.oid_tabela = r_filho.oid and
+          t.ordem > r_filho.ordem
+        order by t.ordem desc
+      loop
+        if r_filho.fk_ciclica and r_pai.fk_ciclica then
+          r_filho.trocar := exists(
+            select 1
+            from
+              suporte.vw_tabelas_fk fk
+              join information_schema.columns c on c.table_schema = fk.esquema_tabela and c.table_name = fk.nome_tabela
+            where 
+              fk.oid_tabela = r_filho.oid and 
+              fk.oid_referencia = r_pai.oid and
+              c.ordinal_position in (select * from suporte.fc_fk_colunas(r_pai.oid_fk, 'fk')) and
+              c.is_nullable = 'no'
+          );
+        else
+          r_filho.trocar := true;
+        end if;
+
+        if r_filho.trocar then
+          -- tira o filho da lista
+          -- atualiza o item anterior ao filho
+          update tmp_tabelas set
+            id_proximo = r_filho.id_proximo
+          where id = r_filho.id_anterior;
+
+          -- atualiza o item posterior ao filho
+          update tmp_tabelas set
+            id_anterior = r_filho.id_anterior
+          where id = r_filho.id_proximo;
+
+          -- recoloca o filho na lista apos o pai
+          -- atualiza o item filho
+          update tmp_tabelas set
+            id_anterior = r_pai.id,
+            id_proximo = r_pai.id_proximo
+          where id = r_filho.id;
+
+          -- atualiza o item pai
+          update tmp_tabelas set
+            id_proximo = r_filho.id
+          where id = r_pai.id;
+
+          -- atualiza o item posterior ao pai
+          update tmp_tabelas set
+            id_anterior = r_filho.id
+          where id = r_pai.id_proximo;
+        end if; -- if r_filho.trocar then
+
+        -- se houve troca pode sair
+        exit when r_filho.trocar;
+      end loop;     
+      exit when r_filho.trocar or r_filho.id_proximo is null;
+      -- obtem o proximo item da lista
+      select id, oid, id_anterior, id_proximo, fk_ciclica, ordem, false as trocar, nome into r_filho
+      from tmp_tabelas
+      where id = r_filho.id_proximo;
+    end loop;
+    
+    -- ordena as tabelas de acordo com a lista
+    -- obtem o primeiro item da lista
+    select id, id_proximo, 1 as ordem into r_atual
+    from tmp_tabelas
+    where id_anterior is null;
+    loop
+      update tmp_tabelas set
+        ordem = r_atual.ordem
+      where 
+        id = r_atual.id and
+        ordem <> r_atual.ordem;
+      if found then
+        v_repete := true;
+      end if;
+      
+      -- obtem o proximo item
+      exit when r_atual.id_proximo is null;
+      select id, id_proximo, r_atual.ordem + 1 as ordem into r_atual
+      from tmp_tabelas
+      where id = r_atual.id_proximo;
+    end loop; -- ordena as tabelas de acordo com a lista
+
+    exit when not v_repete or v_iteracao = v_iteracao_max;
+  end loop; -- arruma a lista de tabelas de acordo com os relacionamentos
+
+  -- retorna o resultado
+  return query
+    select ordem, banco, esquema, nome, oid, auto_fk, fk_ciclica
+    from tmp_tabelas
+    order by ordem;
+  return;
+
+end;
+$$;
+
+
+ALTER FUNCTION suporte.fc_tabelas_ordenar_por_fk(p_esquema name, p_incluir_outros_esquemas boolean) OWNER TO postgres;
+
+SET search_path = guddi, pg_catalog;
+
+SET default_tablespace = '';
+
+SET default_with_oids = false;
+
+--
+-- TOC entry 1552 (class 1259 OID 565178)
+-- Dependencies: 8
+-- Name: atributo; Type: TABLE; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+CREATE TABLE atributo (
+    id bigint NOT NULL,
+    descricao character varying(300),
+    nome character varying(20),
+    tipo character varying(10),
+    id_servico bigint
+);
+
+
+ALTER TABLE guddi.atributo OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1551 (class 1259 OID 565176)
+-- Dependencies: 1552 8
+-- Name: atributo_id_seq; Type: SEQUENCE; Schema: guddi; Owner: thiago.soares
+--
+
+CREATE SEQUENCE atributo_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MAXVALUE
+    NO MINVALUE
+    CACHE 1;
+
+
+ALTER TABLE guddi.atributo_id_seq OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1927 (class 0 OID 0)
+-- Dependencies: 1551
+-- Name: atributo_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER SEQUENCE atributo_id_seq OWNED BY atributo.id;
+
+
+--
+-- TOC entry 1928 (class 0 OID 0)
+-- Dependencies: 1551
+-- Name: atributo_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: thiago.soares
+--
+
+SELECT pg_catalog.setval('atributo_id_seq', 100, false);
+
+
+--
+-- TOC entry 1554 (class 1259 OID 565186)
+-- Dependencies: 8
+-- Name: descritor; Type: TABLE; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+CREATE TABLE descritor (
+    id bigint NOT NULL,
+    descricao character varying(1500),
+    nome character varying(25),
+    tipo character varying(255),
+    url character varying(256),
+    id_sistema bigint
+);
+
+
+ALTER TABLE guddi.descritor OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1553 (class 1259 OID 565184)
+-- Dependencies: 1554 8
+-- Name: descritor_id_seq; Type: SEQUENCE; Schema: guddi; Owner: thiago.soares
+--
+
+CREATE SEQUENCE descritor_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MAXVALUE
+    NO MINVALUE
+    CACHE 1;
+
+
+ALTER TABLE guddi.descritor_id_seq OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1931 (class 0 OID 0)
+-- Dependencies: 1553
+-- Name: descritor_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER SEQUENCE descritor_id_seq OWNED BY descritor.id;
+
+
+--
+-- TOC entry 1932 (class 0 OID 0)
+-- Dependencies: 1553
+-- Name: descritor_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: thiago.soares
+--
+
+SELECT pg_catalog.setval('descritor_id_seq', 100, false);
+
+
+--
+-- TOC entry 1568 (class 1259 OID 565259)
+-- Dependencies: 8
+-- Name: descritor_marcacao; Type: TABLE; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+CREATE TABLE descritor_marcacao (
+    id_descritor bigint NOT NULL,
+    id_marcacao bigint NOT NULL
+);
+
+
+ALTER TABLE guddi.descritor_marcacao OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1556 (class 1259 OID 565197)
+-- Dependencies: 8
+-- Name: excecao; Type: TABLE; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+CREATE TABLE excecao (
+    id bigint NOT NULL,
+    descricao character varying(255),
+    identificador character varying(20),
+    id_servico bigint
+);
+
+
+ALTER TABLE guddi.excecao OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1555 (class 1259 OID 565195)
+-- Dependencies: 1556 8
+-- Name: excecao_id_seq; Type: SEQUENCE; Schema: guddi; Owner: thiago.soares
+--
+
+CREATE SEQUENCE excecao_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MAXVALUE
+    NO MINVALUE
+    CACHE 1;
+
+
+ALTER TABLE guddi.excecao_id_seq OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1936 (class 0 OID 0)
+-- Dependencies: 1555
+-- Name: excecao_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER SEQUENCE excecao_id_seq OWNED BY excecao.id;
+
+
+--
+-- TOC entry 1937 (class 0 OID 0)
+-- Dependencies: 1555
+-- Name: excecao_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: thiago.soares
+--
+
+SELECT pg_catalog.setval('excecao_id_seq', 100, false);
+
+
+--
+-- TOC entry 1558 (class 1259 OID 565205)
+-- Dependencies: 8
+-- Name: marcacao; Type: TABLE; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+CREATE TABLE marcacao (
+    id bigint NOT NULL,
+    marcacao character varying(15)
+);
+
+
+ALTER TABLE guddi.marcacao OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1557 (class 1259 OID 565203)
+-- Dependencies: 8 1558
+-- Name: marcacao_id_seq; Type: SEQUENCE; Schema: guddi; Owner: thiago.soares
+--
+
+CREATE SEQUENCE marcacao_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MAXVALUE
+    NO MINVALUE
+    CACHE 1;
+
+
+ALTER TABLE guddi.marcacao_id_seq OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1940 (class 0 OID 0)
+-- Dependencies: 1557
+-- Name: marcacao_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER SEQUENCE marcacao_id_seq OWNED BY marcacao.id;
+
+
+--
+-- TOC entry 1941 (class 0 OID 0)
+-- Dependencies: 1557
+-- Name: marcacao_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: thiago.soares
+--
+
+SELECT pg_catalog.setval('marcacao_id_seq', 1, false);
+
+
+--
+-- TOC entry 1560 (class 1259 OID 565213)
+-- Dependencies: 8
+-- Name: orgao; Type: TABLE; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+CREATE TABLE orgao (
+    id bigint NOT NULL,
+    codigo character varying(10),
+    email character varying(60),
+    endereco character varying(70),
+    nome character varying(50),
+    nomecontato character varying(50),
+    razaosocial character varying(50),
+    sigla character varying(10),
+    uf character varying(2),
+    url character varying(100)
+);
+
+
+ALTER TABLE guddi.orgao OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1559 (class 1259 OID 565211)
+-- Dependencies: 1560 8
+-- Name: orgao_id_seq; Type: SEQUENCE; Schema: guddi; Owner: thiago.soares
+--
+
+CREATE SEQUENCE orgao_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MAXVALUE
+    NO MINVALUE
+    CACHE 1;
+
+
+ALTER TABLE guddi.orgao_id_seq OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1944 (class 0 OID 0)
+-- Dependencies: 1559
+-- Name: orgao_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER SEQUENCE orgao_id_seq OWNED BY orgao.id;
+
+
+--
+-- TOC entry 1945 (class 0 OID 0)
+-- Dependencies: 1559
+-- Name: orgao_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: thiago.soares
+--
+
+SELECT pg_catalog.setval('orgao_id_seq', 100, false);
+
+
+--
+-- TOC entry 1561 (class 1259 OID 565219)
+-- Dependencies: 8
+-- Name: recurso; Type: TABLE; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+CREATE TABLE recurso (
+    id bigint NOT NULL,
+    nome character varying(50)
+);
+
+
+ALTER TABLE guddi.recurso OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1563 (class 1259 OID 565226)
+-- Dependencies: 8
+-- Name: retorno; Type: TABLE; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+CREATE TABLE retorno (
+    id bigint NOT NULL,
+    descricao character varying(300),
+    tipo character varying(100)
+);
+
+
+ALTER TABLE guddi.retorno OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1562 (class 1259 OID 565224)
+-- Dependencies: 1563 8
+-- Name: retorno_id_seq; Type: SEQUENCE; Schema: guddi; Owner: thiago.soares
+--
+
+CREATE SEQUENCE retorno_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MAXVALUE
+    NO MINVALUE
+    CACHE 1;
+
+
+ALTER TABLE guddi.retorno_id_seq OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1949 (class 0 OID 0)
+-- Dependencies: 1562
+-- Name: retorno_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER SEQUENCE retorno_id_seq OWNED BY retorno.id;
+
+
+--
+-- TOC entry 1950 (class 0 OID 0)
+-- Dependencies: 1562
+-- Name: retorno_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: thiago.soares
+--
+
+SELECT pg_catalog.setval('retorno_id_seq', 100, false);
+
+
+--
+-- TOC entry 1565 (class 1259 OID 565234)
+-- Dependencies: 8
+-- Name: servico; Type: TABLE; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+CREATE TABLE servico (
+    id bigint NOT NULL,
+    descricao character varying(1500),
+    nome character varying(50),
+    id_descritor bigint,
+    tipo_retorno character varying(100)
+);
+
+
+ALTER TABLE guddi.servico OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1564 (class 1259 OID 565232)
+-- Dependencies: 8 1565
+-- Name: servico_id_seq; Type: SEQUENCE; Schema: guddi; Owner: thiago.soares
+--
+
+CREATE SEQUENCE servico_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MAXVALUE
+    NO MINVALUE
+    CACHE 1;
+
+
+ALTER TABLE guddi.servico_id_seq OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1953 (class 0 OID 0)
+-- Dependencies: 1564
+-- Name: servico_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER SEQUENCE servico_id_seq OWNED BY servico.id;
+
+
+--
+-- TOC entry 1954 (class 0 OID 0)
+-- Dependencies: 1564
+-- Name: servico_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: thiago.soares
+--
+
+SELECT pg_catalog.setval('servico_id_seq', 100, false);
+
+
+--
+-- TOC entry 1567 (class 1259 OID 565245)
+-- Dependencies: 8
+-- Name: sistema; Type: TABLE; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+CREATE TABLE sistema (
+    id bigint NOT NULL,
+    publico boolean,
+    nome character varying(100),
+    id_orgao bigint
+);
+
+
+ALTER TABLE guddi.sistema OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1566 (class 1259 OID 565243)
+-- Dependencies: 8 1567
+-- Name: sistema_id_seq; Type: SEQUENCE; Schema: guddi; Owner: thiago.soares
+--
+
+CREATE SEQUENCE sistema_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MAXVALUE
+    NO MINVALUE
+    CACHE 1;
+
+
+ALTER TABLE guddi.sistema_id_seq OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1957 (class 0 OID 0)
+-- Dependencies: 1566
+-- Name: sistema_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER SEQUENCE sistema_id_seq OWNED BY sistema.id;
+
+
+--
+-- TOC entry 1958 (class 0 OID 0)
+-- Dependencies: 1566
+-- Name: sistema_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: thiago.soares
+--
+
+SELECT pg_catalog.setval('sistema_id_seq', 100, false);
+
+
+--
+-- TOC entry 1571 (class 1259 OID 565433)
+-- Dependencies: 8
+-- Name: usuario; Type: TABLE; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+CREATE TABLE usuario (
+    id bigint NOT NULL,
+    aminesia character varying(64) NOT NULL,
+    email character varying(64) NOT NULL,
+    ativo boolean,
+    nome character varying(50) NOT NULL,
+    papel smallint NOT NULL,
+    senha character varying(32) NOT NULL,
+    usuario character varying(30) NOT NULL,
+    id_orgao bigint NOT NULL
+);
+
+
+ALTER TABLE guddi.usuario OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1570 (class 1259 OID 565431)
+-- Dependencies: 1571 8
+-- Name: usuario_id_seq; Type: SEQUENCE; Schema: guddi; Owner: thiago.soares
+--
+
+CREATE SEQUENCE usuario_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MAXVALUE
+    NO MINVALUE
+    CACHE 1;
+
+
+ALTER TABLE guddi.usuario_id_seq OWNER TO "thiago.soares";
+
+--
+-- TOC entry 1961 (class 0 OID 0)
+-- Dependencies: 1570
+-- Name: usuario_id_seq; Type: SEQUENCE OWNED BY; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER SEQUENCE usuario_id_seq OWNED BY usuario.id;
+
+
+--
+-- TOC entry 1962 (class 0 OID 0)
+-- Dependencies: 1570
+-- Name: usuario_id_seq; Type: SEQUENCE SET; Schema: guddi; Owner: thiago.soares
+--
+
+SELECT pg_catalog.setval('usuario_id_seq', 100, false);
+
+
+--
+-- TOC entry 1569 (class 1259 OID 565262)
+-- Dependencies: 8
+-- Name: usuario_recursos; Type: TABLE; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+CREATE TABLE usuario_recursos (
+    id_usuario bigint NOT NULL,
+    recursos integer NOT NULL,
+    operacao integer NOT NULL
+);
+
+
+ALTER TABLE guddi.usuario_recursos OWNER TO "thiago.soares";
+
+SET search_path = suporte, pg_catalog;
+
+--
+-- TOC entry 1549 (class 1259 OID 564874)
+-- Dependencies: 1658 259 259 6
+-- Name: vw_tabelas_fk; Type: VIEW; Schema: suporte; Owner: postgres
+--
+
+CREATE VIEW vw_tabelas_fk AS
+    SELECT t.oid AS oid_tabela, db.catalog_name AS banco_tabela, et.nspname AS esquema_tabela, t.relname AS nome_tabela, fk.oid AS oid_fk, fk.conname AS nome_fk, r.oid AS oid_referencia, db.catalog_name AS banco_referencia, er.nspname AS esquema_referencia, r.relname AS nome_referencia FROM ((((pg_constraint fk JOIN pg_namespace et ON ((et.oid = fk.connamespace))) JOIN pg_class t ON ((t.oid = fk.conrelid))) JOIN pg_class r ON ((r.oid = fk.confrelid))) JOIN pg_namespace er ON ((er.oid = r.relnamespace))), information_schema.information_schema_catalog_name db WHERE (fk.contype = 'f'::"char");
+
+
+ALTER TABLE suporte.vw_tabelas_fk OWNER TO postgres;
+
+SET search_path = guddi, pg_catalog;
+
+--
+-- TOC entry 1850 (class 2604 OID 565181)
+-- Dependencies: 1551 1552 1552
+-- Name: id; Type: DEFAULT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE atributo ALTER COLUMN id SET DEFAULT nextval('atributo_id_seq'::regclass);
+
+
+--
+-- TOC entry 1851 (class 2604 OID 565189)
+-- Dependencies: 1553 1554 1554
+-- Name: id; Type: DEFAULT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE descritor ALTER COLUMN id SET DEFAULT nextval('descritor_id_seq'::regclass);
+
+
+--
+-- TOC entry 1852 (class 2604 OID 565200)
+-- Dependencies: 1556 1555 1556
+-- Name: id; Type: DEFAULT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE excecao ALTER COLUMN id SET DEFAULT nextval('excecao_id_seq'::regclass);
+
+
+--
+-- TOC entry 1853 (class 2604 OID 565208)
+-- Dependencies: 1558 1557 1558
+-- Name: id; Type: DEFAULT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE marcacao ALTER COLUMN id SET DEFAULT nextval('marcacao_id_seq'::regclass);
+
+
+--
+-- TOC entry 1854 (class 2604 OID 565216)
+-- Dependencies: 1560 1559 1560
+-- Name: id; Type: DEFAULT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE orgao ALTER COLUMN id SET DEFAULT nextval('orgao_id_seq'::regclass);
+
+
+--
+-- TOC entry 1855 (class 2604 OID 565229)
+-- Dependencies: 1563 1562 1563
+-- Name: id; Type: DEFAULT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE retorno ALTER COLUMN id SET DEFAULT nextval('retorno_id_seq'::regclass);
+
+
+--
+-- TOC entry 1856 (class 2604 OID 565237)
+-- Dependencies: 1565 1564 1565
+-- Name: id; Type: DEFAULT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE servico ALTER COLUMN id SET DEFAULT nextval('servico_id_seq'::regclass);
+
+
+--
+-- TOC entry 1857 (class 2604 OID 565248)
+-- Dependencies: 1566 1567 1567
+-- Name: id; Type: DEFAULT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE sistema ALTER COLUMN id SET DEFAULT nextval('sistema_id_seq'::regclass);
+
+
+--
+-- TOC entry 1858 (class 2604 OID 565436)
+-- Dependencies: 1570 1571 1571
+-- Name: id; Type: DEFAULT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE usuario ALTER COLUMN id SET DEFAULT nextval('usuario_id_seq'::regclass);
+
+
+--
+-- TOC entry 1889 (class 0 OID 565178)
+-- Dependencies: 1552
+-- Data for Name: atributo; Type: TABLE DATA; Schema: guddi; Owner: thiago.soares
+--
+
+COPY atributo (id, descricao, nome, tipo, id_servico) FROM stdin;
+1	Número da nota fiscal	numero	String	1
+2	Data da nota fiscal	dataEmissao	Date	1
+3	Valor da nota fiscal	valorTotal	Double	1
+4	Total de itens da nota fiscal	totalItens	Long	1
+5	Número da nota fiscal	numero	String	2
+6	Data da nota fiscal	dataEmissao	Date	2
+7	Valor da nota fiscal	valorTotal	Double	2
+8	Total de itens da nota fiscal	totalItens	Long	2
+9	Identificador da nota fiscal	id	Long	3
+10	Identificador do usuário	id	Long	4
+13	Identificador do protocolo	protocolo	String	7
+14	Identificador do protocolo	protocolo	String	8
+11	Nome, login ou documento do usuário	descricao	String	5
+12	identificador do Sistema	id	Long	6
+\.
+
+
+--
+-- TOC entry 1890 (class 0 OID 565186)
+-- Dependencies: 1554
+-- Data for Name: descritor; Type: TABLE DATA; Schema: guddi; Owner: thiago.soares
+--
+
+COPY descritor (id, descricao, nome, tipo, url, id_sistema) FROM stdin;
+1	O PSP informatiza os procedimentos e integra, na medida em que promove a comunicação de dados entre os agentes intervenientes no processo portuário, eliminando o trâmite de 112 documentos, em diversas vias, e 935 informações em duplicidade junto às seis autoridades anuentes (Polícia Federal, Anvisa, Delegacia da Receita Federal, Vigiagro e Autoridade Portuária), preservando todos os seus aspectos inerentes ao sigilo e a segurança das informações nele produzidas. Isso irá reduzir em média 25% o tempo de estadia dos navios nos portos.	Porto Sem Papel	WSDL	http://aplicacoes.mds.gov.br/teste/webservices/PPSPService	1
+2	O Siasg é o sistema informatizado de apoio às atividades operacionais do Sistema de Serviços Gerais. A solução tem sido uma ferramenta importante para a modernização da área de serviços gerais na Administração Federal, em especial no cadastramento de fornecedores e de catálogo de materiais e serviços e no registro de preços de bens e serviços.Assim, o sistema é capaz de agilizar os processos de compra e promover a transparência dos atos do governo ao divulgar informações sobre os processos licitatórios. O sistema foi desenvolvido para o Ministério do Planejamento, Orçamento e Gestão (MPOG).	SIAS	REST	http://200.120.41.331:9080/SIAS	2
+3	A Central de Serviços Serpro (CSS) é o canal de comunicação mais ágil entre os clientes da empresa ou usuários dos serviços Serpro com as equipes de especialistas. Confira as formas de abrir um acionamento na central e compreenda o seu funcionamento.	CENTRAL SERVIÇOS	WSDL	http://aplicacoes.mds.gov.br/teste/webservices/PASService	3
+5	O sistema de controle de acesso controle asa permissões dos usuários em sistemas desenvolvidos pela prodepa	Controle de Acesso	WSDL	http://10.1.11.14:8080/controleacesso/ws/ControleAcessoFacadeBeanWS?wsdl	5
+6	O eprotocolo fornece controle digital sobre os documentos que tramitam no estado	eProtocolo	WSDL	http://10.1.11.14:8080/eprotocolo/ws/DocumentoFacadeBeanWS?wsdl	6
+4	A partir de 1º de novembro de 2012 uma novidade vai transformar o modo de acesso de usuários da Prodepa: é o Governo Digital, um acesso único a todos os sistemas desenvolvidos pela empresa.E o melhor, é que nada mudou. Para acessar o Governo Digital basta entrar na página do sistema que você utiliza, com o mesmo login e senha para autenticar sua conta. As diversas aplicações ou serviços estarão disponíveis num só lugar.Para proporcionar a implantação do sistema único, a Prodepa realiza a migração dos demais sistemas. Nesse sentido, durante este dia serão feitos ainda alguns ajustes técnicos para a total excelência do serviço.	Portal do Governo Digital	WSDL	http://10.1.11.14:8080/controleacesso/ws/ControleAcessoFacadeBeanWS?wsdl	4
+\.
+
+
+--
+-- TOC entry 1898 (class 0 OID 565259)
+-- Dependencies: 1568
+-- Data for Name: descritor_marcacao; Type: TABLE DATA; Schema: guddi; Owner: thiago.soares
+--
+
+COPY descritor_marcacao (id_descritor, id_marcacao) FROM stdin;
+1	1
+1	11
+1	12
+1	13
+6	14
+6	15
+6	16
+6	16
+6	17
+6	2
+4	2
+5	2
+4	17
+5	17
+6	17
+4	18
+5	18
+6	18
+\.
+
+
+--
+-- TOC entry 1891 (class 0 OID 565197)
+-- Dependencies: 1556
+-- Data for Name: excecao; Type: TABLE DATA; Schema: guddi; Owner: thiago.soares
+--
+
+COPY excecao (id, descricao, identificador, id_servico) FROM stdin;
+1	Nota Fiscal não localizada	erro.nf.01	1
+2	Nota Fiscal invalida	erro.nf.02	1
+3	Nota Fiscal não localizada	erro.nf.03	2
+4	Nota Fiscal invalida	erro.nf.04	2
+5	Nota Fiscal bloqueada para edição	erro.nf.05	2
+6	Nota Fiscal não localizada	erro.nf.06	3
+7	Nota Fiscal invalida	erro.nf.07	3
+8	Nota Fiscal bloqueada para edição	erro.nf.08	3
+9	Usuário não localizado	erro.usuario.01	4
+10	Usuário bloqueado	erro.usuario.02	4
+13	Protocolo não localizado	erro.protocolo.01	7
+14	Protocolo não localizado	erro.protocolo.02	8
+11	Parâmetros inválidos	erro.pesquisa.03	5
+12	Sistema não localizado	erro.estatistica.06	6
+\.
+
+
+--
+-- TOC entry 1892 (class 0 OID 565205)
+-- Dependencies: 1558
+-- Data for Name: marcacao; Type: TABLE DATA; Schema: guddi; Owner: thiago.soares
+--
+
+COPY marcacao (id, marcacao) FROM stdin;
+1	SERPRO
+2	PRODEPA
+3	TRE
+4	TJE
+11	porto sem papel
+12	porto
+13	papel
+14	e-protocolo
+15	eprotocolo
+16	protocolo
+17	Pará
+18	Para
+\.
+
+
+--
+-- TOC entry 1893 (class 0 OID 565213)
+-- Dependencies: 1560
+-- Data for Name: orgao; Type: TABLE DATA; Schema: guddi; Owner: thiago.soares
+--
+
+COPY orgao (id, codigo, email, endereco, nome, nomecontato, razaosocial, sigla, uf, url) FROM stdin;
+1	SERPRO	serpro@serpro.pa.gov.br	Rua 123	SERPRO		SERVIÇO FEDERAL DE PROCESSAMENTO DE DADOS	SERPRO	DF	http://www.serpro.gov.br
+2	PRODEPA	prodepa@prodepa.pa.gov.br	Rodovia Augusto Montenegro km 10 · Centro Administrativo do Estado	PRODEPA	CAP	PRODEPA	PRODEPA	PA	http://www.prodepa.pa.gov.br/
+3	TRT	Umarizal - CEP 66050-100 - Belém-Pará-Amazônia-Brasil		TRT	TRE	Tribunal Regional do trabalho	TRT-PA	PA	http://www.trt8.jus.br/
+4	TJE	tje@tje.gov	Av. Almirante Barroso nº 3089 - Bairro: Souza - Belém - PA	TJE-PA		Tribunal de Justiça do Estado do Pará	TJE	PA	http://www.tjpa.jus.br
+\.
+
+
+--
+-- TOC entry 1894 (class 0 OID 565219)
+-- Dependencies: 1561
+-- Data for Name: recurso; Type: TABLE DATA; Schema: guddi; Owner: thiago.soares
+--
+
+COPY recurso (id, nome) FROM stdin;
+\.
+
+
+--
+-- TOC entry 1895 (class 0 OID 565226)
+-- Dependencies: 1563
+-- Data for Name: retorno; Type: TABLE DATA; Schema: guddi; Owner: thiago.soares
+--
+
+COPY retorno (id, descricao, tipo) FROM stdin;
+1	Flag Indicativa do cadastro com sucesso	Boolean
+2	Flag Indicativa da alteracao com sucesso	Boolean
+3	Flag Indicativa da exclusão com sucesso	Boolean
+6	Gson com estatisticas de acesso do Sistema	Text
+7	Objeto com detalhamento do estado atual de um protocolo	DetalhamentoProtocolo
+8	Lista de tramitações de um protocolo	ArrayList<Tramitacao>
+4	Lista de Sistemas	ArrayList<Sistema>
+5	Lista de usuários encontrados	List<Usuario>
+\.
+
+
+--
+-- TOC entry 1896 (class 0 OID 565234)
+-- Dependencies: 1565
+-- Data for Name: servico; Type: TABLE DATA; Schema: guddi; Owner: thiago.soares
+--
+
+COPY servico (id, descricao, nome, id_descritor, tipo_retorno) FROM stdin;
+1	Metodo para cadastro de uma nota fiscal	cadastrarNotaFiscal	1	Boolean
+2	Metodo para cadastro de uma nota fiscal	alterarNotaFiscal	1	Boolean
+3	Metodo para cadastro de uma nota fiscal	excluirNotaFiscal	1	Boolean
+4	Metodo para recuperar a list de sistemas do usuário	buscarSistemasVinculados	4	List<Sistemas>
+5	Metodo para pesquisa de usuários	buscarUsuarios	4	List<Usuario>
+6	Metodo para obter Gson com estatisticas de acesso do Sistema	obterEstatisticas	4	Text
+7	Metodo para obter o detalhamento do estado atual de um protocolo	consultarProtocolo	6	ConsultaProtocolo
+8	Metodo para obter a lista de tramitações de um documento	consultarTramitacoes	6	List<TramitaçõesProtocolo>
+\.
+
+
+--
+-- TOC entry 1897 (class 0 OID 565245)
+-- Dependencies: 1567
+-- Data for Name: sistema; Type: TABLE DATA; Schema: guddi; Owner: thiago.soares
+--
+
+COPY sistema (id, publico, nome, id_orgao) FROM stdin;
+1	t	Porto Sem Papel	1
+2	t	Sistema Integrado de Administração de Serviços	1
+3	t	PAS Serpro	1
+4	t	Governo Digital	2
+5	t	Controle de Acesso	2
+6	t	e-Protocolo	2
+7	t	SispatWeb	2
+8	t	Imobiliario	2
+9	t	Certidão Online	3
+10	t	Push	3
+11	t	Portal de Consultas	3
+12	t	TJ Consultas	3
+13	t	Sistema Sentinela	3
+20	t	NucleoPA	2
+\.
+
+
+--
+-- TOC entry 1900 (class 0 OID 565433)
+-- Dependencies: 1571
+-- Data for Name: usuario; Type: TABLE DATA; Schema: guddi; Owner: thiago.soares
+--
+
+COPY usuario (id, aminesia, email, ativo, nome, papel, senha, usuario, id_orgao) FROM stdin;
+1		admin@guddi.org	t	System Admininstrator	4	e10adc3949ba59abbe56e057f20f883e	admin	1
+2		guest@guddi.org	t	Guest User	1	e10adc3949ba59abbe56e057f20f883e	guest	1
+3		manager@guddi.org	t	System Manager	2	e10adc3949ba59abbe56e057f20f883e	manager	1
+4		thiago.soares@guddi.org	t	thiago Soares	1	48772a0046f9ee8e0531bba30f280005	thiago.soares	1
+6	a1568531233398fcaf75b0c3afcaca4d	clovisjunior2009@gmail.com	t	Clovis Lemes Ferreira Junior	4	0c3afc	usuario	2
+7	a10f06547f79a8285b06047f47793c64	manager@manager.com	t	Teste de Manager	2	47f477	manager2	3
+10	b662950a3b872e8e0126371606f41296	joao@joao.com	f	João	0	71606f	joao	1
+8	068c519cab5d63b2665fda5924b02eb8	gladisonico@gladisonico.com	t	Paulo Gladson	4	a5924b	gladisonico	1
+\.
+
+
+--
+-- TOC entry 1899 (class 0 OID 565262)
+-- Dependencies: 1569
+-- Data for Name: usuario_recursos; Type: TABLE DATA; Schema: guddi; Owner: thiago.soares
+--
+
+COPY usuario_recursos (id_usuario, recursos, operacao) FROM stdin;
+\.
+
+
+--
+-- TOC entry 1860 (class 2606 OID 565183)
+-- Dependencies: 1552 1552
+-- Name: atributo_pkey; Type: CONSTRAINT; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+ALTER TABLE ONLY atributo
+    ADD CONSTRAINT atributo_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 1862 (class 2606 OID 565194)
+-- Dependencies: 1554 1554
+-- Name: descritor_pkey; Type: CONSTRAINT; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+ALTER TABLE ONLY descritor
+    ADD CONSTRAINT descritor_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 1864 (class 2606 OID 565202)
+-- Dependencies: 1556 1556
+-- Name: excecao_pkey; Type: CONSTRAINT; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+ALTER TABLE ONLY excecao
+    ADD CONSTRAINT excecao_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 1866 (class 2606 OID 565210)
+-- Dependencies: 1558 1558
+-- Name: marcacao_pkey; Type: CONSTRAINT; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+ALTER TABLE ONLY marcacao
+    ADD CONSTRAINT marcacao_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 1868 (class 2606 OID 565218)
+-- Dependencies: 1560 1560
+-- Name: orgao_pkey; Type: CONSTRAINT; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+ALTER TABLE ONLY orgao
+    ADD CONSTRAINT orgao_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 1870 (class 2606 OID 565223)
+-- Dependencies: 1561 1561
+-- Name: recurso_pkey; Type: CONSTRAINT; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+ALTER TABLE ONLY recurso
+    ADD CONSTRAINT recurso_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 1872 (class 2606 OID 565231)
+-- Dependencies: 1563 1563
+-- Name: retorno_pkey; Type: CONSTRAINT; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+ALTER TABLE ONLY retorno
+    ADD CONSTRAINT retorno_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 1874 (class 2606 OID 565242)
+-- Dependencies: 1565 1565
+-- Name: servico_pkey; Type: CONSTRAINT; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+ALTER TABLE ONLY servico
+    ADD CONSTRAINT servico_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 1876 (class 2606 OID 565250)
+-- Dependencies: 1567 1567
+-- Name: sistema_pkey; Type: CONSTRAINT; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+ALTER TABLE ONLY sistema
+    ADD CONSTRAINT sistema_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 1880 (class 2606 OID 565438)
+-- Dependencies: 1571 1571
+-- Name: usuario_pkey; Type: CONSTRAINT; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+ALTER TABLE ONLY usuario
+    ADD CONSTRAINT usuario_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 1878 (class 2606 OID 565266)
+-- Dependencies: 1569 1569 1569
+-- Name: usuario_recursos_pkey; Type: CONSTRAINT; Schema: guddi; Owner: thiago.soares; Tablespace: 
+--
+
+ALTER TABLE ONLY usuario_recursos
+    ADD CONSTRAINT usuario_recursos_pkey PRIMARY KEY (id_usuario, recursos);
+
+
+--
+-- TOC entry 1883 (class 2606 OID 565277)
+-- Dependencies: 1556 1873 1565
+-- Name: fk1476033c3f0429cb; Type: FK CONSTRAINT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE ONLY excecao
+    ADD CONSTRAINT fk1476033c3f0429cb FOREIGN KEY (id_servico) REFERENCES servico(id);
+
+
+--
+-- TOC entry 1881 (class 2606 OID 565267)
+-- Dependencies: 1873 1552 1565
+-- Name: fk20fdaad83f0429cb; Type: FK CONSTRAINT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE ONLY atributo
+    ADD CONSTRAINT fk20fdaad83f0429cb FOREIGN KEY (id_servico) REFERENCES servico(id);
+
+
+--
+-- TOC entry 1888 (class 2606 OID 565439)
+-- Dependencies: 1867 1571 1560
+-- Name: fk5b4d8b0e42446fb1; Type: FK CONSTRAINT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE ONLY usuario
+    ADD CONSTRAINT fk5b4d8b0e42446fb1 FOREIGN KEY (id_orgao) REFERENCES orgao(id);
+
+
+--
+-- TOC entry 1882 (class 2606 OID 565272)
+-- Dependencies: 1875 1554 1567
+-- Name: fkd0d887af4cc53091; Type: FK CONSTRAINT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE ONLY descritor
+    ADD CONSTRAINT fkd0d887af4cc53091 FOREIGN KEY (id_sistema) REFERENCES sistema(id);
+
+
+--
+-- TOC entry 1884 (class 2606 OID 565282)
+-- Dependencies: 1554 1861 1565
+-- Name: fkd97c5e9f58938cab; Type: FK CONSTRAINT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE ONLY servico
+    ADD CONSTRAINT fkd97c5e9f58938cab FOREIGN KEY (id_descritor) REFERENCES descritor(id);
+
+
+--
+-- TOC entry 1885 (class 2606 OID 565292)
+-- Dependencies: 1560 1867 1567
+-- Name: fke05ce20242446fb1; Type: FK CONSTRAINT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE ONLY sistema
+    ADD CONSTRAINT fke05ce20242446fb1 FOREIGN KEY (id_orgao) REFERENCES orgao(id);
+
+
+--
+-- TOC entry 1886 (class 2606 OID 565302)
+-- Dependencies: 1558 1865 1568
+-- Name: fkead68519a2557d; Type: FK CONSTRAINT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE ONLY descritor_marcacao
+    ADD CONSTRAINT fkead68519a2557d FOREIGN KEY (id_marcacao) REFERENCES marcacao(id);
+
+
+--
+-- TOC entry 1887 (class 2606 OID 565307)
+-- Dependencies: 1568 1554 1861
+-- Name: fkead68558938cab; Type: FK CONSTRAINT; Schema: guddi; Owner: thiago.soares
+--
+
+ALTER TABLE ONLY descritor_marcacao
+    ADD CONSTRAINT fkead68558938cab FOREIGN KEY (id_descritor) REFERENCES descritor(id);
+
+
+--
+-- TOC entry 1904 (class 0 OID 0)
+-- Dependencies: 8
+-- Name: guddi; Type: ACL; Schema: -; Owner: thiago.soares
+--
+
+REVOKE ALL ON SCHEMA guddi FROM PUBLIC;
+REVOKE ALL ON SCHEMA guddi FROM "thiago.soares";
+GRANT ALL ON SCHEMA guddi TO "thiago.soares";
+GRANT USAGE ON SCHEMA guddi TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1906 (class 0 OID 0)
+-- Dependencies: 3
+-- Name: public; Type: ACL; Schema: -; Owner: postgres
+--
+
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+REVOKE ALL ON SCHEMA public FROM postgres;
+GRANT ALL ON SCHEMA public TO postgres;
+GRANT ALL ON SCHEMA public TO PUBLIC;
+
+
+SET search_path = suporte, pg_catalog;
+
+--
+-- TOC entry 1907 (class 0 OID 0)
+-- Dependencies: 27
+-- Name: fc_altera_para_owner_padrao(); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_altera_para_owner_padrao() FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_altera_para_owner_padrao() FROM postgres;
+GRANT ALL ON FUNCTION fc_altera_para_owner_padrao() TO postgres;
+GRANT ALL ON FUNCTION fc_altera_para_owner_padrao() TO PUBLIC;
+
+
+--
+-- TOC entry 1908 (class 0 OID 0)
+-- Dependencies: 26
+-- Name: fc_assinatura_funcao(name, name); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_assinatura_funcao(p_specific_schema name, p_specific_name name) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_assinatura_funcao(p_specific_schema name, p_specific_name name) FROM postgres;
+GRANT ALL ON FUNCTION fc_assinatura_funcao(p_specific_schema name, p_specific_name name) TO postgres;
+GRANT ALL ON FUNCTION fc_assinatura_funcao(p_specific_schema name, p_specific_name name) TO PUBLIC;
+
+
+--
+-- TOC entry 1909 (class 0 OID 0)
+-- Dependencies: 32
+-- Name: fc_databases(); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_databases() FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_databases() FROM postgres;
+GRANT ALL ON FUNCTION fc_databases() TO postgres;
+GRANT ALL ON FUNCTION fc_databases() TO PUBLIC;
+
+
+--
+-- TOC entry 1910 (class 0 OID 0)
+-- Dependencies: 37
+-- Name: fc_excluir_papel(character varying, character varying); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_excluir_papel(p_papel character varying, p_esquema character varying) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_excluir_papel(p_papel character varying, p_esquema character varying) FROM postgres;
+GRANT ALL ON FUNCTION fc_excluir_papel(p_papel character varying, p_esquema character varying) TO postgres;
+GRANT ALL ON FUNCTION fc_excluir_papel(p_papel character varying, p_esquema character varying) TO PUBLIC;
+
+
+--
+-- TOC entry 1911 (class 0 OID 0)
+-- Dependencies: 23
+-- Name: fc_fk_colunas(oid, character varying); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_fk_colunas(p_oid_fk oid, p_tipo_coluna character varying) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_fk_colunas(p_oid_fk oid, p_tipo_coluna character varying) FROM postgres;
+GRANT ALL ON FUNCTION fc_fk_colunas(p_oid_fk oid, p_tipo_coluna character varying) TO postgres;
+GRANT ALL ON FUNCTION fc_fk_colunas(p_oid_fk oid, p_tipo_coluna character varying) TO PUBLIC;
+
+
+--
+-- TOC entry 1912 (class 0 OID 0)
+-- Dependencies: 25
+-- Name: fc_gera_create_databases(); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_gera_create_databases() FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_gera_create_databases() FROM postgres;
+GRANT ALL ON FUNCTION fc_gera_create_databases() TO postgres;
+GRANT ALL ON FUNCTION fc_gera_create_databases() TO PUBLIC;
+
+
+--
+-- TOC entry 1913 (class 0 OID 0)
+-- Dependencies: 31
+-- Name: fc_gera_pg_restore_databases(character varying, character varying); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_gera_pg_restore_databases(p_prefixo character varying, p_sufixo character varying) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_gera_pg_restore_databases(p_prefixo character varying, p_sufixo character varying) FROM postgres;
+GRANT ALL ON FUNCTION fc_gera_pg_restore_databases(p_prefixo character varying, p_sufixo character varying) TO postgres;
+GRANT ALL ON FUNCTION fc_gera_pg_restore_databases(p_prefixo character varying, p_sufixo character varying) TO PUBLIC;
+
+
+--
+-- TOC entry 1914 (class 0 OID 0)
+-- Dependencies: 24
+-- Name: fc_gera_script_delete_all(name, character varying, boolean); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_gera_script_delete_all(p_esquema name, p_dblink character varying, p_incluir_outros_esquemas boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_gera_script_delete_all(p_esquema name, p_dblink character varying, p_incluir_outros_esquemas boolean) FROM postgres;
+GRANT ALL ON FUNCTION fc_gera_script_delete_all(p_esquema name, p_dblink character varying, p_incluir_outros_esquemas boolean) TO postgres;
+GRANT ALL ON FUNCTION fc_gera_script_delete_all(p_esquema name, p_dblink character varying, p_incluir_outros_esquemas boolean) TO PUBLIC;
+
+
+--
+-- TOC entry 1915 (class 0 OID 0)
+-- Dependencies: 38
+-- Name: fc_gera_script_esquema_remoto(name, character varying, character varying, character varying); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_gera_script_esquema_remoto(p_esquema name, p_foreign_data_wrapper character varying, p_foreign_server character varying, p_nome_papel_apl character varying) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_gera_script_esquema_remoto(p_esquema name, p_foreign_data_wrapper character varying, p_foreign_server character varying, p_nome_papel_apl character varying) FROM postgres;
+GRANT ALL ON FUNCTION fc_gera_script_esquema_remoto(p_esquema name, p_foreign_data_wrapper character varying, p_foreign_server character varying, p_nome_papel_apl character varying) TO postgres;
+GRANT ALL ON FUNCTION fc_gera_script_esquema_remoto(p_esquema name, p_foreign_data_wrapper character varying, p_foreign_server character varying, p_nome_papel_apl character varying) TO PUBLIC;
+
+
+--
+-- TOC entry 1916 (class 0 OID 0)
+-- Dependencies: 22
+-- Name: fc_gera_script_insert_all(name, character varying, boolean); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_gera_script_insert_all(p_esquema name, p_dblink character varying, p_incluir_outros_esquemas boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_gera_script_insert_all(p_esquema name, p_dblink character varying, p_incluir_outros_esquemas boolean) FROM postgres;
+GRANT ALL ON FUNCTION fc_gera_script_insert_all(p_esquema name, p_dblink character varying, p_incluir_outros_esquemas boolean) TO postgres;
+GRANT ALL ON FUNCTION fc_gera_script_insert_all(p_esquema name, p_dblink character varying, p_incluir_outros_esquemas boolean) TO PUBLIC;
+
+
+--
+-- TOC entry 1917 (class 0 OID 0)
+-- Dependencies: 39
+-- Name: fc_gera_script_update_all(name, character varying, boolean); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_gera_script_update_all(p_esquema name, p_dblink character varying, p_incluir_outros_esquemas boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_gera_script_update_all(p_esquema name, p_dblink character varying, p_incluir_outros_esquemas boolean) FROM postgres;
+GRANT ALL ON FUNCTION fc_gera_script_update_all(p_esquema name, p_dblink character varying, p_incluir_outros_esquemas boolean) TO postgres;
+GRANT ALL ON FUNCTION fc_gera_script_update_all(p_esquema name, p_dblink character varying, p_incluir_outros_esquemas boolean) TO PUBLIC;
+
+
+--
+-- TOC entry 1918 (class 0 OID 0)
+-- Dependencies: 35
+-- Name: fc_gera_sql_delete(name, name, character varying); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_gera_sql_delete(p_esquema name, p_tabela name, p_dblink character varying) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_gera_sql_delete(p_esquema name, p_tabela name, p_dblink character varying) FROM postgres;
+GRANT ALL ON FUNCTION fc_gera_sql_delete(p_esquema name, p_tabela name, p_dblink character varying) TO postgres;
+GRANT ALL ON FUNCTION fc_gera_sql_delete(p_esquema name, p_tabela name, p_dblink character varying) TO PUBLIC;
+
+
+--
+-- TOC entry 1919 (class 0 OID 0)
+-- Dependencies: 21
+-- Name: fc_gera_sql_insert(name, name, character varying, oid); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_gera_sql_insert(p_esquema name, p_tabela name, p_dblink character varying, p_oid_fk oid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_gera_sql_insert(p_esquema name, p_tabela name, p_dblink character varying, p_oid_fk oid) FROM postgres;
+GRANT ALL ON FUNCTION fc_gera_sql_insert(p_esquema name, p_tabela name, p_dblink character varying, p_oid_fk oid) TO postgres;
+GRANT ALL ON FUNCTION fc_gera_sql_insert(p_esquema name, p_tabela name, p_dblink character varying, p_oid_fk oid) TO PUBLIC;
+
+
+--
+-- TOC entry 1920 (class 0 OID 0)
+-- Dependencies: 33
+-- Name: fc_gera_sql_select(name, name, character varying); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_gera_sql_select(p_esquema name, p_tabela name, p_dblink character varying) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_gera_sql_select(p_esquema name, p_tabela name, p_dblink character varying) FROM postgres;
+GRANT ALL ON FUNCTION fc_gera_sql_select(p_esquema name, p_tabela name, p_dblink character varying) TO postgres;
+GRANT ALL ON FUNCTION fc_gera_sql_select(p_esquema name, p_tabela name, p_dblink character varying) TO PUBLIC;
+
+
+--
+-- TOC entry 1921 (class 0 OID 0)
+-- Dependencies: 34
+-- Name: fc_gera_sql_update(name, name, character varying, oid); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_gera_sql_update(p_esquema name, p_tabela name, p_dblink character varying, p_oid_fk oid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_gera_sql_update(p_esquema name, p_tabela name, p_dblink character varying, p_oid_fk oid) FROM postgres;
+GRANT ALL ON FUNCTION fc_gera_sql_update(p_esquema name, p_tabela name, p_dblink character varying, p_oid_fk oid) TO postgres;
+GRANT ALL ON FUNCTION fc_gera_sql_update(p_esquema name, p_tabela name, p_dblink character varying, p_oid_fk oid) TO PUBLIC;
+
+
+--
+-- TOC entry 1922 (class 0 OID 0)
+-- Dependencies: 30
+-- Name: fc_privilegios_padroes(); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_privilegios_padroes() FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_privilegios_padroes() FROM postgres;
+GRANT ALL ON FUNCTION fc_privilegios_padroes() TO postgres;
+GRANT ALL ON FUNCTION fc_privilegios_padroes() TO PUBLIC;
+
+
+--
+-- TOC entry 1923 (class 0 OID 0)
+-- Dependencies: 36
+-- Name: fc_reiniciar_sequencias(name); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_reiniciar_sequencias(p_esquema name) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_reiniciar_sequencias(p_esquema name) FROM postgres;
+GRANT ALL ON FUNCTION fc_reiniciar_sequencias(p_esquema name) TO postgres;
+GRANT ALL ON FUNCTION fc_reiniciar_sequencias(p_esquema name) TO PUBLIC;
+
+
+--
+-- TOC entry 1924 (class 0 OID 0)
+-- Dependencies: 29
+-- Name: fc_tabela_colunas(name, name, name); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_tabela_colunas(p_esquema name, p_tabela name, p_coluna name) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_tabela_colunas(p_esquema name, p_tabela name, p_coluna name) FROM postgres;
+GRANT ALL ON FUNCTION fc_tabela_colunas(p_esquema name, p_tabela name, p_coluna name) TO postgres;
+GRANT ALL ON FUNCTION fc_tabela_colunas(p_esquema name, p_tabela name, p_coluna name) TO PUBLIC;
+
+
+--
+-- TOC entry 1925 (class 0 OID 0)
+-- Dependencies: 28
+-- Name: fc_tabelas_ordenar_por_fk(name, boolean); Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION fc_tabelas_ordenar_por_fk(p_esquema name, p_incluir_outros_esquemas boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fc_tabelas_ordenar_por_fk(p_esquema name, p_incluir_outros_esquemas boolean) FROM postgres;
+GRANT ALL ON FUNCTION fc_tabelas_ordenar_por_fk(p_esquema name, p_incluir_outros_esquemas boolean) TO postgres;
+GRANT ALL ON FUNCTION fc_tabelas_ordenar_por_fk(p_esquema name, p_incluir_outros_esquemas boolean) TO PUBLIC;
+
+
+SET search_path = guddi, pg_catalog;
+
+--
+-- TOC entry 1926 (class 0 OID 0)
+-- Dependencies: 1552
+-- Name: atributo; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON TABLE atributo FROM PUBLIC;
+REVOKE ALL ON TABLE atributo FROM "thiago.soares";
+GRANT ALL ON TABLE atributo TO "thiago.soares";
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE atributo TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1929 (class 0 OID 0)
+-- Dependencies: 1551
+-- Name: atributo_id_seq; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON SEQUENCE atributo_id_seq FROM PUBLIC;
+REVOKE ALL ON SEQUENCE atributo_id_seq FROM "thiago.soares";
+GRANT ALL ON SEQUENCE atributo_id_seq TO "thiago.soares";
+GRANT ALL ON SEQUENCE atributo_id_seq TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1930 (class 0 OID 0)
+-- Dependencies: 1554
+-- Name: descritor; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON TABLE descritor FROM PUBLIC;
+REVOKE ALL ON TABLE descritor FROM "thiago.soares";
+GRANT ALL ON TABLE descritor TO "thiago.soares";
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE descritor TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1933 (class 0 OID 0)
+-- Dependencies: 1553
+-- Name: descritor_id_seq; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON SEQUENCE descritor_id_seq FROM PUBLIC;
+REVOKE ALL ON SEQUENCE descritor_id_seq FROM "thiago.soares";
+GRANT ALL ON SEQUENCE descritor_id_seq TO "thiago.soares";
+GRANT ALL ON SEQUENCE descritor_id_seq TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1934 (class 0 OID 0)
+-- Dependencies: 1568
+-- Name: descritor_marcacao; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON TABLE descritor_marcacao FROM PUBLIC;
+REVOKE ALL ON TABLE descritor_marcacao FROM "thiago.soares";
+GRANT ALL ON TABLE descritor_marcacao TO "thiago.soares";
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE descritor_marcacao TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1935 (class 0 OID 0)
+-- Dependencies: 1556
+-- Name: excecao; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON TABLE excecao FROM PUBLIC;
+REVOKE ALL ON TABLE excecao FROM "thiago.soares";
+GRANT ALL ON TABLE excecao TO "thiago.soares";
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE excecao TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1938 (class 0 OID 0)
+-- Dependencies: 1555
+-- Name: excecao_id_seq; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON SEQUENCE excecao_id_seq FROM PUBLIC;
+REVOKE ALL ON SEQUENCE excecao_id_seq FROM "thiago.soares";
+GRANT ALL ON SEQUENCE excecao_id_seq TO "thiago.soares";
+GRANT ALL ON SEQUENCE excecao_id_seq TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1939 (class 0 OID 0)
+-- Dependencies: 1558
+-- Name: marcacao; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON TABLE marcacao FROM PUBLIC;
+REVOKE ALL ON TABLE marcacao FROM "thiago.soares";
+GRANT ALL ON TABLE marcacao TO "thiago.soares";
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE marcacao TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1942 (class 0 OID 0)
+-- Dependencies: 1557
+-- Name: marcacao_id_seq; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON SEQUENCE marcacao_id_seq FROM PUBLIC;
+REVOKE ALL ON SEQUENCE marcacao_id_seq FROM "thiago.soares";
+GRANT ALL ON SEQUENCE marcacao_id_seq TO "thiago.soares";
+GRANT ALL ON SEQUENCE marcacao_id_seq TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1943 (class 0 OID 0)
+-- Dependencies: 1560
+-- Name: orgao; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON TABLE orgao FROM PUBLIC;
+REVOKE ALL ON TABLE orgao FROM "thiago.soares";
+GRANT ALL ON TABLE orgao TO "thiago.soares";
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE orgao TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1946 (class 0 OID 0)
+-- Dependencies: 1559
+-- Name: orgao_id_seq; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON SEQUENCE orgao_id_seq FROM PUBLIC;
+REVOKE ALL ON SEQUENCE orgao_id_seq FROM "thiago.soares";
+GRANT ALL ON SEQUENCE orgao_id_seq TO "thiago.soares";
+GRANT ALL ON SEQUENCE orgao_id_seq TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1947 (class 0 OID 0)
+-- Dependencies: 1561
+-- Name: recurso; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON TABLE recurso FROM PUBLIC;
+REVOKE ALL ON TABLE recurso FROM "thiago.soares";
+GRANT ALL ON TABLE recurso TO "thiago.soares";
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE recurso TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1948 (class 0 OID 0)
+-- Dependencies: 1563
+-- Name: retorno; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON TABLE retorno FROM PUBLIC;
+REVOKE ALL ON TABLE retorno FROM "thiago.soares";
+GRANT ALL ON TABLE retorno TO "thiago.soares";
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE retorno TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1951 (class 0 OID 0)
+-- Dependencies: 1562
+-- Name: retorno_id_seq; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON SEQUENCE retorno_id_seq FROM PUBLIC;
+REVOKE ALL ON SEQUENCE retorno_id_seq FROM "thiago.soares";
+GRANT ALL ON SEQUENCE retorno_id_seq TO "thiago.soares";
+GRANT ALL ON SEQUENCE retorno_id_seq TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1952 (class 0 OID 0)
+-- Dependencies: 1565
+-- Name: servico; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON TABLE servico FROM PUBLIC;
+REVOKE ALL ON TABLE servico FROM "thiago.soares";
+GRANT ALL ON TABLE servico TO "thiago.soares";
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE servico TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1955 (class 0 OID 0)
+-- Dependencies: 1564
+-- Name: servico_id_seq; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON SEQUENCE servico_id_seq FROM PUBLIC;
+REVOKE ALL ON SEQUENCE servico_id_seq FROM "thiago.soares";
+GRANT ALL ON SEQUENCE servico_id_seq TO "thiago.soares";
+GRANT ALL ON SEQUENCE servico_id_seq TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1956 (class 0 OID 0)
+-- Dependencies: 1567
+-- Name: sistema; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON TABLE sistema FROM PUBLIC;
+REVOKE ALL ON TABLE sistema FROM "thiago.soares";
+GRANT ALL ON TABLE sistema TO "thiago.soares";
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE sistema TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1959 (class 0 OID 0)
+-- Dependencies: 1566
+-- Name: sistema_id_seq; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON SEQUENCE sistema_id_seq FROM PUBLIC;
+REVOKE ALL ON SEQUENCE sistema_id_seq FROM "thiago.soares";
+GRANT ALL ON SEQUENCE sistema_id_seq TO "thiago.soares";
+GRANT ALL ON SEQUENCE sistema_id_seq TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1960 (class 0 OID 0)
+-- Dependencies: 1571
+-- Name: usuario; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON TABLE usuario FROM PUBLIC;
+REVOKE ALL ON TABLE usuario FROM "thiago.soares";
+GRANT ALL ON TABLE usuario TO "thiago.soares";
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE usuario TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1963 (class 0 OID 0)
+-- Dependencies: 1570
+-- Name: usuario_id_seq; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON SEQUENCE usuario_id_seq FROM PUBLIC;
+REVOKE ALL ON SEQUENCE usuario_id_seq FROM "thiago.soares";
+GRANT ALL ON SEQUENCE usuario_id_seq TO "thiago.soares";
+GRANT ALL ON SEQUENCE usuario_id_seq TO r_serpro_guddi_apl;
+
+
+--
+-- TOC entry 1964 (class 0 OID 0)
+-- Dependencies: 1569
+-- Name: usuario_recursos; Type: ACL; Schema: guddi; Owner: thiago.soares
+--
+
+REVOKE ALL ON TABLE usuario_recursos FROM PUBLIC;
+REVOKE ALL ON TABLE usuario_recursos FROM "thiago.soares";
+GRANT ALL ON TABLE usuario_recursos TO "thiago.soares";
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE usuario_recursos TO r_serpro_guddi_apl;
+
+
+SET search_path = suporte, pg_catalog;
+
+--
+-- TOC entry 1965 (class 0 OID 0)
+-- Dependencies: 1549
+-- Name: vw_tabelas_fk; Type: ACL; Schema: suporte; Owner: postgres
+--
+
+REVOKE ALL ON TABLE vw_tabelas_fk FROM PUBLIC;
+REVOKE ALL ON TABLE vw_tabelas_fk FROM postgres;
+GRANT ALL ON TABLE vw_tabelas_fk TO postgres;
+
+
+-- Completed on 2013-07-19 16:52:10 BRT
+
+--
+-- PostgreSQL database dump complete
+--
+
